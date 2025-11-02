@@ -256,7 +256,7 @@ export default function UserRegistrationForm() {
             <div className="space-y-4 border-t border-cyan-500/20 pt-4">
               <h3 className="text-lg font-semibold text-orange-400 flex items-center gap-2">
                 ⚡ XSS Testing Fields
-                <Badge variant="outline" className="text-orange-400 border-orange-400/50">
+                <Badge className="text-orange-400 border-orange-400/50">
                   For Comment Testing
                 </Badge>
               </h3>
@@ -309,7 +309,7 @@ export default function UserRegistrationForm() {
             <div className="space-y-4 border-t border-cyan-500/20 pt-4">
               <h3 className="text-lg font-semibold text-purple-400 flex items-center gap-2">
                 🔐 Access Control Testing Fields
-                <Badge variant="outline" className="text-purple-400 border-purple-400/50">
+                <Badge className="text-purple-400 border-purple-400/50">
                   For Authorization Testing
                 </Badge>
               </h3>
@@ -322,10 +322,8 @@ export default function UserRegistrationForm() {
                     </Label>
                     <Button
                       type="button"
-                      size="sm"
-                      variant="outline"
                       onClick={generateToken}
-                      className="text-purple-400 border-purple-400/50 hover:bg-purple-500/10"
+                      className="text-purple-400 border border-purple-400/50 hover:bg-purple-500/10 text-sm bg-transparent"
                     >
                       🎲 Generate Token
                     </Button>
@@ -438,7 +436,7 @@ export default function UserRegistrationForm() {
                 </p>
                 <div className="flex flex-wrap gap-1 mt-1">
                   {createdUser.allowedResources?.map((resource: string, idx: number) => (
-                    <Badge key={idx} variant="outline" className="text-purple-400 border-purple-400/50 text-xs">
+                    <Badge key={idx} className="text-purple-400 border-purple-400/50 text-xs">
                       {resource}
                     </Badge>
                   ))}
