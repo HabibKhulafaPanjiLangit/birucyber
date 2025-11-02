@@ -6,7 +6,7 @@ import next from 'next';
 
 const dev = process.env.NODE_ENV !== 'production';
 const currentPort = parseInt(process.env.PORT || '3000', 10);
-const hostname = process.env.RAILWAY_PUBLIC_DOMAIN ? '0.0.0.0' : 'localhost';
+const hostname = dev ? 'localhost' : '0.0.0.0';
 
 // Custom server with Socket.IO integration
 async function createCustomServer() {
@@ -44,8 +44,20 @@ async function createCustomServer() {
 
     // Start the server
     server.listen(currentPort, hostname, () => {
+      console.log(`> Server started successfully!`);
+      console.log(`> Environment: ${process.env.NODE_ENV}`);
       console.log(`> Ready on http://${hostname}:${currentPort}`);
       console.log(`> Socket.IO server running at ws://${hostname}:${currentPort}/api/socketio`);
+      console.log(`> Health check available at: http://${hostname}:${currentPort}/api/health`);
+    });
+
+    // Graceful shutdown
+    process.on('SIGTERM', () => {
+      console.log('SIGTERM received, closing server...');
+      server.close(() => {
+        console.log('Server closed');
+        process.exit(0);
+      });
     });
 
   } catch (err) {
