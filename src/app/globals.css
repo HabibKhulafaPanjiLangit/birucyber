@@ -1,0 +1,170 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* BiruCyber Hacker Theme Styles */
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.animate-pulse {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+.bg-black {
+  background-color: #000000;
+}
+
+.text-red-600 {
+  color: #dc2626;
+}
+
+.text-red-400 {
+  color: #f87171;
+}
+
+.text-red-500 {
+  color: #ef4444;
+}
+
+.bg-red-900 {
+  background-color: #7f1d1d;
+}
+
+.bg-red-950 {
+  background-color: #450a0a;
+}
+
+.border-red-900 {
+  border-color: #7f1d1d;
+}
+
+.border-red-800 {
+  border-color: #991b1b;
+}
+
+.bg-gray-900 {
+  background-color: #111827;
+}
+
+.bg-gray-800 {
+  background-color: #1f2937;
+}
+
+.text-red-50 {
+  color: #fef2f2;
+}
+
+.backdrop-blur-sm {
+  backdrop-filter: blur(4px);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0a0a0a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #7f1d1d;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #00cc00;
+}
+
+/* Global body styles */
+body {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  background-color: #000000;
+}
+
+/* FORCE HIDE ALL NOTIFICATIONS AND TOASTS */
+[data-sonner-toaster],
+[data-sonner-toast],
+[data-radix-toast-viewport],
+[data-radix-toast-root],
+[data-radix-portal],
+[role="status"],
+[role="alert"],
+[role="region"][aria-live],
+.toaster,
+.toast,
+ol[data-sonner-toaster],
+li[data-sonner-toast],
+button[data-sonner-toast-close-button] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  position: fixed !important;
+  left: -99999px !important;
+  top: -99999px !important;
+  width: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+  z-index: -9999 !important;
+}
+
+/* Hide Next.js Dev Overlay and Indicators */
+#webpack-dev-server-client-overlay,
+#webpack-dev-server-client-overlay-div,
+nextjs-portal,
+[id*="nextjs"],
+[id*="webpack"],
+[class*="nextjs"],
+button[data-nextjs-toast-wrapper],
+div[data-nextjs-toast-wrapper],
+button[aria-label*="Next"],
+button[aria-label*="Turbopack"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+}
+
+/* Hide the N button (Next.js indicator) - ULTRA AGGRESSIVE */
+body > button,
+body > div > button,
+body > button[style],
+body > div[style*="position"][style*="fixed"],
+button[style*="position: fixed"],
+button[style*="bottom"],
+button[style*="left"],
+button[aria-label],
+button:only-child {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  position: absolute !important;
+  left: -99999px !important;
+}
+
+/* Target specific Next.js dev button */
+body > button:first-of-type,
+body > button:last-of-type,
+html > body > button {
+  display: none !important;
+}
