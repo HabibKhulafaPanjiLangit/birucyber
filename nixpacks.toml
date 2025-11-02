@@ -1,0 +1,30 @@
+# Railway Deployment Configuration
+providers = ["node", "postgresql"]
+
+[build]
+builder = "NIXPACKS"
+
+[build.env]
+NODE_ENV = "production"
+NPM_CONFIG_PRODUCTION = "false"
+
+[phases.setup]
+nixPkgs = ["nodejs_20", "npm-9_x"]
+
+[phases.install]
+cmds = [
+  "npm ci",
+  "npx prisma generate"
+]
+
+[phases.build]
+cmds = ["npm run build"]
+
+[start]
+cmd = "npx tsx server.ts"
+
+[deploy]
+healthcheckPath = "/api/health"
+healthcheckTimeout = 100
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
