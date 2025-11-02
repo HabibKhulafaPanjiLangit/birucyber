@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { PrismaClient } from '@prisma/client'
 
-// Simulated database users
-const users = [
-  { id: 1, username: 'admin', password: 'admin123', role: 'admin', email: 'admin@example.com' },
-  { id: 2, username: 'user1', password: 'user123', role: 'user', email: 'user1@example.com' },
-  { id: 3, username: 'guest', password: 'guest123', role: 'guest', email: 'guest@example.com' }
+const prisma = new PrismaClient()
+
+// Simulated sensitive database tables (for demo purposes)
+const creditCards = [
+  { id: 1, userId: 1, cardNumber: '4532-1234-5678-9010', cvv: '123', expiry: '12/25' },
+  { id: 2, userId: 2, cardNumber: '5425-2345-6789-0123', cvv: '456', expiry: '06/26' },
+  { id: 3, userId: 4, cardNumber: '3782-3456-7890-1234', cvv: '789', expiry: '03/27' }
 ]
 
 export async function POST(request: NextRequest) {
@@ -18,32 +21,102 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Safe mode - proper parameter validation
+    // Safe mode - proper parameter validation using real database
     if (testMode === 'safe') {
-      const user = users.find(u => 
-        u.username === username.trim() && u.password === password.trim()
-      )
-
-      if (user) {
-        return NextResponse.json({
-          success: true,
-          message: 'Login successful (safe mode)',
-          user: {
-            id: user.id,
-            username: user.username,
-            role: user.role,
-            email: user.email
-          },
-          query: `SELECT * FROM users WHERE username = ? AND password = ?`,
-          parameters: [username, password]
+      try {
+        // Try to find user by username or email
+        const user = await prisma.user.findFirst({
+          where: {
+            OR: [
+              { username: username.trim() },
+              { email: username.trim() }
+            ],
+            password: password.trim()
+          }
         })
-      } else {
+
+        if (user) {
+          const result = {
+            success: true,
+            message: '✅ Login successful (safe mode)',
+            user: {
+              id: user.id,
+              username: user.username,
+              email: user.email,
+              name: user.name,
+              role: user.role
+            },
+            security: {
+              method: 'Parameterized query',
+              protected: true,
+              sqlInjectionPrevented: true
+            },
+            query: `SELECT * FROM users WHERE (username = ? OR email = ?) AND password = ?`,
+            parameters: ['[REDACTED]', '[REDACTED]', '[REDACTED]']
+          }
+
+          // Save successful safe login to database
+          try {
+            await prisma.sqlInjectionTest.create({
+              data: {
+                username: username,
+                password: '[REDACTED]', // Don't store actual password in safe mode
+                testMode: 'safe',
+                success: true,
+                attackDetected: false,
+                attackType: null,
+                severity: 'low',
+                ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
+                userAgent: request.headers.get('user-agent') || 'unknown',
+                result: JSON.stringify(result)
+              }
+            })
+          } catch (dbError) {
+            console.error('Failed to save SQL injection test to database:', dbError)
+          }
+
+          return NextResponse.json(result)
+        } else {
+          const result = {
+            success: false,
+            message: '❌ Invalid credentials (safe mode)',
+            security: {
+              method: 'Parameterized query',
+              protected: true,
+              sqlInjectionPrevented: true
+            },
+            query: `SELECT * FROM users WHERE (username = ? OR email = ?) AND password = ?`,
+            parameters: ['[REDACTED]', '[REDACTED]', '[REDACTED]']
+          }
+
+          // Save failed safe login to database
+          try {
+            await prisma.sqlInjectionTest.create({
+              data: {
+                username: username,
+                password: '[REDACTED]',
+                testMode: 'safe',
+                success: false,
+                attackDetected: false,
+                attackType: null,
+                severity: 'low',
+                ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
+                userAgent: request.headers.get('user-agent') || 'unknown',
+                result: JSON.stringify(result)
+              }
+            })
+          } catch (dbError) {
+            console.error('Failed to save SQL injection test to database:', dbError)
+          }
+
+          return NextResponse.json(result)
+        }
+      } catch (error: any) {
         return NextResponse.json({
           success: false,
-          message: 'Invalid credentials (safe mode)',
-          query: `SELECT * FROM users WHERE username = ? AND password = ?`,
-          parameters: [username, password]
-        })
+          message: 'Database error',
+          error: error.message
+        }, { status: 500 })
       }
     }
 
@@ -52,21 +125,28 @@ export async function POST(request: NextRequest) {
       // Simulate SQL injection vulnerability
       let query = `SELECT * FROM users WHERE username = '${username}' AND password = '${password}'`
       
-      // Check for common SQL injection patterns
+      // Enhanced SQL injection pattern detection
       const sqlInjectionPatterns = [
-        /' OR '1'='1/i,
-        /' OR '1'='1' --/i,
-        /' OR 1=1 --/i,
-        /' UNION SELECT/i,
-        /'; DROP TABLE/i,
-        /' OR 'a'='a/i
+        { pattern: /' OR '1'='1/i, name: 'Classic OR bypass', severity: 'high' },
+        { pattern: /' OR '1'='1' --/i, name: 'OR bypass with comment', severity: 'high' },
+        { pattern: /' OR 1=1 --/i, name: 'Numeric OR bypass', severity: 'high' },
+        { pattern: /' UNION SELECT/i, name: 'UNION-based injection', severity: 'critical' },
+        { pattern: /'; DROP TABLE/i, name: 'DROP TABLE attack', severity: 'critical' },
+        { pattern: /' OR 'a'='a/i, name: 'Alternative OR bypass', severity: 'high' },
+        { pattern: /' AND '1'='2/i, name: 'AND false condition', severity: 'medium' },
+        { pattern: /admin'--/i, name: 'Comment-based bypass', severity: 'high' },
+        { pattern: /' UNION ALL SELECT/i, name: 'UNION ALL injection', severity: 'critical' },
+        { pattern: /' AND SLEEP\(/i, name: 'Time-based blind SQLi', severity: 'high' },
+        { pattern: /' OR SLEEP\(/i, name: 'Time-based OR injection', severity: 'high' },
+        { pattern: /' XOR /i, name: 'XOR-based injection', severity: 'medium' },
+        { pattern: /'\) OR \('/i, name: 'Parenthesis bypass', severity: 'medium' }
       ]
 
-      const isInjection = sqlInjectionPatterns.some(pattern => 
+      const detectedPattern = sqlInjectionPatterns.find(({ pattern }) => 
         pattern.test(username) || pattern.test(password)
       )
 
-      if (isInjection) {
+      if (detectedPattern) {
         // Log to dashboard
         try {
           await fetch(`${request.nextUrl.origin}/api/dashboard`, {
@@ -84,33 +164,103 @@ export async function POST(request: NextRequest) {
           console.error('Failed to log to dashboard:', e)
         }
         
-        // Simulate successful SQL injection attack
-        return NextResponse.json({
+        // Fetch all users from database to simulate data breach
+        const allUsers = await prisma.user.findMany({
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            name: true,
+            role: true,
+            password: true // In real attack, passwords would be exposed
+          }
+        })
+
+        // Prepare result object
+        const result = {
           success: true,
           message: '🚨 SQL INJECTION SUCCESSFUL! Authentication bypassed!',
           vulnerability: 'SQL Injection',
-          impact: 'Authentication bypass - all users exposed',
+          attackType: detectedPattern.name,
+          severity: detectedPattern.severity,
+          impact: 'Critical - Authentication bypass & Data exposure',
           maliciousQuery: query,
-          simulatedResult: users, // All users exposed
-          explanation: 'The input was not properly sanitized, allowing SQL injection to bypass authentication.',
+          exposedData: {
+            users: allUsers,
+            creditCards: creditCards, // Simulating data breach
+            totalRecordsExposed: allUsers.length + creditCards.length
+          },
+          attackVector: username.includes('UNION') ? 'UNION-based SQLi' : 
+                       username.includes('SLEEP') ? 'Time-based Blind SQLi' : 
+                       'Boolean-based Blind SQLi',
+          explanation: `The application executed: ${query}\n\nThis allowed the attacker to ${
+            detectedPattern.name === 'UNION-based injection' ? 'extract data from multiple tables' :
+            detectedPattern.name === 'DROP TABLE attack' ? 'potentially destroy database tables' :
+            'bypass authentication and access unauthorized data'
+          }.`,
+          realWorldImpact: [
+            '💳 Credit card information exposed',
+            '🔐 All user credentials compromised',
+            '📊 Sensitive salary and SSN data leaked',
+            '⚠️ Potential for data manipulation or deletion',
+            '🚨 Complete database compromise possible'
+          ],
           prevention: [
-            'Use prepared statements or parameterized queries',
-            'Validate and sanitize all user inputs',
-            'Use ORM with built-in protection',
-            'Implement least privilege database access'
+            '✅ Use Prepared Statements: $stmt = $pdo->prepare("SELECT * FROM users WHERE username = ? AND password = ?");',
+            '✅ Parameterized Queries: query("SELECT * FROM users WHERE id = @id", {id: userId})',
+            '✅ Input Validation: Whitelist acceptable characters and patterns',
+            '✅ ORM Usage: Use Prisma, TypeORM, Sequelize with proper escaping',
+            '✅ Least Privilege: Database user should have minimal permissions',
+            '✅ WAF Implementation: Web Application Firewall to detect patterns',
+            '✅ Error Handling: Don\'t expose database errors to users'
+          ],
+          mitigation: [
+            'Immediately patch the vulnerable code',
+            'Audit all database queries in the application',
+            'Implement input validation middleware',
+            'Add query logging and monitoring',
+            'Conduct security penetration testing'
           ]
-        })
+        }
+
+        // Save test result to database
+        try {
+          await prisma.sqlInjectionTest.create({
+            data: {
+              username: username,
+              password: password,
+              testMode: 'vulnerable',
+              success: true,
+              attackDetected: true,
+              attackType: detectedPattern.name,
+              severity: detectedPattern.severity,
+              ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
+              userAgent: request.headers.get('user-agent') || 'unknown',
+              result: JSON.stringify(result)
+            }
+          })
+        } catch (dbError) {
+          console.error('Failed to save SQL injection test to database:', dbError)
+        }
+
+        return NextResponse.json(result)
       }
 
-      // Normal login attempt in vulnerable mode
-      const user = users.find(u => 
-        u.username === username && u.password === password
-      )
+      // Normal login attempt in vulnerable mode (no SQL injection detected)
+      const user = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { username: username },
+            { email: username }
+          ],
+          password: password
+        }
+      })
 
       if (user) {
-        return NextResponse.json({
+        const result = {
           success: true,
-          message: 'Login successful',
+          message: 'Login successful (vulnerable mode - no protection)',
           user: {
             id: user.id,
             username: user.username,
@@ -118,13 +268,57 @@ export async function POST(request: NextRequest) {
             email: user.email
           },
           query: query
-        })
+        }
+
+        // Save successful login to database
+        try {
+          await prisma.sqlInjectionTest.create({
+            data: {
+              username: username,
+              password: password,
+              testMode: 'vulnerable',
+              success: true,
+              attackDetected: false,
+              attackType: null,
+              severity: 'low',
+              ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
+              userAgent: request.headers.get('user-agent') || 'unknown',
+              result: JSON.stringify(result)
+            }
+          })
+        } catch (dbError) {
+          console.error('Failed to save SQL injection test to database:', dbError)
+        }
+
+        return NextResponse.json(result)
       } else {
-        return NextResponse.json({
+        const result = {
           success: false,
           message: 'Invalid credentials',
           query: query
-        })
+        }
+
+        // Save failed login to database
+        try {
+          await prisma.sqlInjectionTest.create({
+            data: {
+              username: username,
+              password: password,
+              testMode: 'vulnerable',
+              success: false,
+              attackDetected: false,
+              attackType: null,
+              severity: 'low',
+              ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
+              userAgent: request.headers.get('user-agent') || 'unknown',
+              result: JSON.stringify(result)
+            }
+          })
+        } catch (dbError) {
+          console.error('Failed to save SQL injection test to database:', dbError)
+        }
+
+        return NextResponse.json(result)
       }
     }
 

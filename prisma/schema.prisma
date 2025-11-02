@@ -21,16 +21,26 @@ enum Role {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  username  String   @unique
-  password  String
-  role      Role     @default(GUEST)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  posts     Post[]
-  comments  Comment[]
+  id              String   @id @default(cuid())
+  email           String   @unique
+  name            String?
+  username        String   @unique
+  password        String
+  role            Role     @default(GUEST)
+  // XSS Testing Fields
+  authorName      String?  // For XSS testing as comment author
+  bio             String?  // User bio for XSS testing
+  // Access Control Testing Fields
+  accessToken     String?  @unique // Unique token for access control testing
+  allowedResources String? // JSON array of allowed resource paths
+  // Additional Fields
+  avatar          String?  // Profile avatar URL
+  phone           String?  // Phone number
+  address         String?  // Address
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  posts           Post[]
+  comments        Comment[]
 }
 
 model Post {
@@ -63,5 +73,96 @@ model SecurityLog {
   ipAddress   String?
   userAgent   String?
   payload     String?
+  severity    String?
+  blocked     Boolean?
+  attackType  String?
   timestamp   DateTime @default(now())
+}
+
+model SqlInjectionTest {
+  id              String   @id @default(cuid())
+  username        String
+  password        String
+  testMode        String
+  success         Boolean
+  attackDetected  Boolean
+  attackType      String?
+  severity        String?
+  ipAddress       String?
+  userAgent       String?
+  result          String?  // JSON string
+  createdAt       DateTime @default(now())
+}
+
+model XssTest {
+  id              String   @id @default(cuid())
+  author          String
+  comment         String
+  testMode        String
+  success         Boolean
+  attackDetected  Boolean
+  xssType         String?
+  severity        String?
+  sanitized       String?
+  ipAddress       String?
+  userAgent       String?
+  result          String?  // JSON string
+  createdAt       DateTime @default(now())
+}
+
+model AccessControlTest {
+  id              String   @id @default(cuid())
+  resource        String
+  userToken       String?
+  testMode        String
+  accessGranted   Boolean
+  bypassAttempted Boolean
+  bypassSuccessful Boolean?
+  vulnerabilityType String?
+  userRole        String?
+  ipAddress       String?
+  userAgent       String?
+  result          String?  // JSON string
+  createdAt       DateTime @default(now())
+}
+
+model CsrfTest {
+  id              String   @id @default(cuid())
+  action          String
+  sessionToken    String?
+  csrfToken       String?
+  testMode        String
+  success         Boolean
+  attackDetected  Boolean
+  severity        String?
+  ipAddress       String?
+  userAgent       String?
+  result          String?  // JSON string
+  createdAt       DateTime @default(now())
+}
+
+model SecurityHeadersTest {
+  id              String   @id @default(cuid())
+  testMode        String
+  score           Int?
+  missingHeaders  Int?
+  vulnerabilities String?  // JSON array
+  ipAddress       String?
+  userAgent       String?
+  result          String?  // JSON string
+  createdAt       DateTime @default(now())
+}
+
+model RateLimitingTest {
+  id              String   @id @default(cuid())
+  action          String
+  username        String?
+  testMode        String
+  attempts        Int
+  blocked         Boolean
+  lockoutTriggered Boolean?
+  ipAddress       String?
+  userAgent       String?
+  result          String?  // JSON string
+  createdAt       DateTime @default(now())
 }

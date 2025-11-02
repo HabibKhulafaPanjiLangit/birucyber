@@ -3,7 +3,15 @@ import { NextRequest, NextResponse } from 'next/server'
 export async function GET() {
   const results = {
     timestamp: new Date().toISOString(),
-    tests: [] as any[]
+    totalModules: 6,
+    modulesAvailable: ['SQL Injection', 'XSS', 'Access Control', 'CSRF', 'Security Headers', 'Rate Limiting'],
+    tests: [] as any[],
+    summary: {
+      total: 0,
+      passed: 0,
+      failed: 0,
+      successRate: 0
+    }
   }
 
   // Test 1: SQL Injection API
@@ -177,6 +185,109 @@ export async function GET() {
     })
   }
 
+  // Test 4: CSRF Protection API
+  try {
+    const csrfResponse = await fetch('http://localhost:3000/api/csrf')
+    const csrfData = await csrfResponse.json()
+    results.tests.push({
+      name: 'CSRF Protection API',
+      status: csrfResponse.ok ? 'PASS' : 'FAIL',
+      details: csrfData
+    })
+
+    // Test CSRF Vulnerable Mode
+    const csrfVulnResponse = await fetch('http://localhost:3000/api/csrf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'transfer',
+        amount: 1000,
+        recipient: 'attacker',
+        sessionToken: 'session-admin-abc123',
+        testMode: 'vulnerable'
+      })
+    })
+    const csrfVulnData = await csrfVulnResponse.json()
+    results.tests.push({
+      name: 'CSRF Vulnerable Mode',
+      status: csrfVulnResponse.ok ? 'PASS' : 'FAIL',
+      details: csrfVulnData
+    })
+  } catch (error) {
+    results.tests.push({
+      name: 'CSRF Protection API',
+      status: 'FAIL',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    })
+  }
+
+  // Test 5: Security Headers API
+  try {
+    const headersResponse = await fetch('http://localhost:3000/api/security-headers')
+    const headersData = await headersResponse.json()
+    results.tests.push({
+      name: 'Security Headers API',
+      status: headersResponse.ok ? 'PASS' : 'FAIL',
+      details: headersData
+    })
+
+    // Test Security Headers Vulnerable Mode
+    const headersVulnResponse = await fetch('http://localhost:3000/api/security-headers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        testMode: 'vulnerable'
+      })
+    })
+    const headersVulnData = await headersVulnResponse.json()
+    results.tests.push({
+      name: 'Security Headers Scan',
+      status: headersVulnResponse.ok || headersVulnResponse.status === 400 ? 'PASS' : 'FAIL',
+      details: headersVulnData
+    })
+  } catch (error) {
+    results.tests.push({
+      name: 'Security Headers API',
+      status: 'FAIL',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    })
+  }
+
+  // Test 6: Rate Limiting API
+  try {
+    const rateLimitResponse = await fetch('http://localhost:3000/api/rate-limiting')
+    const rateLimitData = await rateLimitResponse.json()
+    results.tests.push({
+      name: 'Rate Limiting API',
+      status: rateLimitResponse.ok ? 'PASS' : 'FAIL',
+      details: rateLimitData
+    })
+
+    // Test Brute Force Detection
+    const bruteForceResponse = await fetch('http://localhost:3000/api/rate-limiting', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'login',
+        username: 'admin',
+        password: 'wrong',
+        testMode: 'vulnerable'
+      })
+    })
+    const bruteForceData = await bruteForceResponse.json()
+    results.tests.push({
+      name: 'Brute Force Detection',
+      status: bruteForceResponse.ok || bruteForceResponse.status === 401 ? 'PASS' : 'FAIL',
+      details: bruteForceData
+    })
+  } catch (error) {
+    results.tests.push({
+      name: 'Rate Limiting API',
+      status: 'FAIL',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    })
+  }
+
   try {
     const modulesResponse = await fetch('http://localhost:3000/api/modules')
     const modulesData = await modulesResponse.json()
@@ -212,14 +323,15 @@ export async function GET() {
   const passedTests = results.tests.filter(test => test.status === 'PASS').length
   const totalTests = results.tests.length
 
+  results.summary = {
+    total: totalTests,
+    passed: passedTests,
+    failed: totalTests - passedTests,
+    successRate: Math.round((passedTests / totalTests) * 100)
+  }
+
   return NextResponse.json({
     success: true,
-    summary: {
-      total: totalTests,
-      passed: passedTests,
-      failed: totalTests - passedTests,
-      successRate: Math.round((passedTests / totalTests) * 100)
-    },
-    results
+    ...results
   })
 }

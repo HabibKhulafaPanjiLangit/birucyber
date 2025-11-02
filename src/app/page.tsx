@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import UserRegistrationForm from '@/components/UserRegistrationForm'
 
 interface CommandHistoryItem {
   cmd: string;
@@ -40,6 +41,14 @@ export default function HackerPortal() {
   // Dashboard states
   const [dashboardData, setDashboardData] = useState<any>(null)
   const [dashboardLoading, setDashboardLoading] = useState(false)
+  
+  // User Management states
+  const [newUserEmail, setNewUserEmail] = useState('')
+  const [newUserName, setNewUserName] = useState('')
+  const [newUserRole, setNewUserRole] = useState('USER')
+  const [userManagementResult, setUserManagementResult] = useState<any>(null)
+  const [userManagementLoading, setUserManagementLoading] = useState(false)
+  const [allUsers, setAllUsers] = useState<any[]>([])
   
   // Matrix rain state (client-side only)
   const [matrixChars, setMatrixChars] = useState<Array<{left: string, duration: string, delay: string, char: string}>>([])
@@ -202,6 +211,84 @@ export default function HackerPortal() {
     }
   }
 
+  // User Management Functions
+  const fetchAllUsers = async () => {
+    setUserManagementLoading(true)
+    try {
+      const response = await fetch('/api/users')
+      const data = await response.json()
+      if (data.success) {
+        setAllUsers(data.users)
+      }
+    } catch (error: any) {
+      console.error('Failed to fetch users:', error)
+    } finally {
+      setUserManagementLoading(false)
+    }
+  }
+
+  const createUser = async () => {
+    setUserManagementLoading(true)
+    setUserManagementResult(null)
+    try {
+      const response = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: newUserEmail,
+          name: newUserName,
+          role: newUserRole
+        })
+      })
+      const data = await response.json()
+      setUserManagementResult(data)
+      
+      if (data.success) {
+        // Clear form
+        setNewUserEmail('')
+        setNewUserName('')
+        setNewUserRole('USER')
+        // Refresh user list
+        fetchAllUsers()
+      }
+    } catch (error: any) {
+      setUserManagementResult({ 
+        success: false, 
+        error: 'Failed to create user: ' + (error?.message || 'Unknown error') 
+      })
+    } finally {
+      setUserManagementLoading(false)
+    }
+  }
+
+  const deleteUser = async (userId: string) => {
+    if (!confirm('Are you sure you want to delete this user?')) return
+    
+    try {
+      const response = await fetch(`/api/users?id=${userId}`, {
+        method: 'DELETE'
+      })
+      const data = await response.json()
+      
+      if (data.success) {
+        fetchAllUsers()
+        setUserManagementResult(data)
+      }
+    } catch (error: any) {
+      setUserManagementResult({ 
+        success: false, 
+        error: 'Failed to delete user: ' + (error?.message || 'Unknown error') 
+      })
+    }
+  }
+
+  // Load users when switching to user management tab
+  useEffect(() => {
+    if (activeTab === 'analytics') {
+      fetchAllUsers()
+    }
+  }, [activeTab])
+
   const executeCommand = (cmd) => {
     const trimmedCmd = cmd.trim().toLowerCase()
     let response = ''
@@ -291,20 +378,43 @@ Type 'help' for available commands.`
   return (
     <div style={{ 
       minHeight: '100vh', 
-      backgroundColor: '#000000', 
+      background: 'linear-gradient(135deg, #0a0a0a 0%, #1a0a1f 25%, #0a1a2f 50%, #0f0a1a 75%, #0a0a0a 100%)',
       color: '#00ff00', 
       fontFamily: 'Courier New, monospace',
       position: 'relative',
       overflow: 'hidden'
     }}>
-      {/* Scanlines Effect */}
+      {/* Animated Gradient Background - Simplified */}
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: 'radial-gradient(circle at 50% 50%, rgba(0, 255, 255, 0.08) 0%, transparent 60%)',
+        zIndex: 0,
+      }} />
+      
+      {/* Grid Pattern Overlay - Simplified */}
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundImage: 'linear-gradient(rgba(0, 255, 255, 0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 255, 255, 0.02) 1px, transparent 1px)',
+        backgroundSize: '60px 60px',
+        zIndex: 0,
+      }} />
+      
+      {/* Scanlines Effect - Simplified and Static */}
       <div style={{
         position: 'fixed',
         top: 0,
         left: 0,
         width: '100%',
         height: '100%',
-        background: 'repeating-linear-gradient(0deg, rgba(0,255,0,0.03) 0px, transparent 1px, transparent 2px, rgba(0,255,0,0.03) 3px)',
+        background: 'repeating-linear-gradient(0deg, rgba(0,255,0,0.02) 0px, transparent 2px)',
         pointerEvents: 'none',
         zIndex: 1
       }}></div>
@@ -359,35 +469,142 @@ Type 'help' for available commands.`
       <div style={{ position: 'relative', zIndex: 3 }}>
         {/* Terminal Header */}
         <header style={{ 
-          borderBottom: '2px solid #00ff00', 
-          backgroundColor: 'rgba(0,0,0,0.9)', 
+          borderBottom: '3px solid',
+          borderImage: 'linear-gradient(90deg, #00ff00, #00ffff, #ff00ff, #00ff00) 1',
+          background: 'linear-gradient(180deg, rgba(0,0,0,0.95) 0%, rgba(10,10,30,0.90) 100%)',
+          boxShadow: '0 4px 20px rgba(0, 255, 255, 0.2)',
+          backdropFilter: 'blur(5px)', 
           padding: '1rem' 
         }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <div style={{ width: '12px', height: '12px', backgroundColor: '#ff0000', borderRadius: '50%' }}></div>
-                <div style={{ width: '12px', height: '12px', backgroundColor: '#ffff00', borderRadius: '50%' }}></div>
-                <div style={{ width: '12px', height: '12px', backgroundColor: '#00ff00', borderRadius: '50%' }}></div>
+                <div style={{ 
+                  width: '14px', 
+                  height: '14px', 
+                  backgroundColor: '#ff0000', 
+                  borderRadius: '50%',
+                  boxShadow: '0 0 8px #ff0000',
+                  animation: 'pulse 3s ease-in-out infinite'
+                }}></div>
+                <div style={{ 
+                  width: '14px', 
+                  height: '14px', 
+                  backgroundColor: '#ffff00', 
+                  borderRadius: '50%',
+                  boxShadow: '0 0 8px #ffff00',
+                  animation: 'pulse 3s ease-in-out infinite 0.5s'
+                }}></div>
+                <div style={{ 
+                  width: '14px', 
+                  height: '14px', 
+                  backgroundColor: '#00ff00', 
+                  borderRadius: '50%',
+                  boxShadow: '0 0 8px #00ff00',
+                  animation: 'pulse 2s ease-in-out infinite 0.6s'
+                }}></div>
               </div>
               <div>
                 <h1 style={{ 
-                  fontSize: '1.2rem', 
+                  fontSize: '1.5rem', 
                   fontWeight: 'bold', 
-                  color: '#00ff00', 
+                  background: 'linear-gradient(90deg, #00ff00, #00ffff, #00ff00)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text',
                   fontFamily: 'Courier New, monospace',
                   margin: 0,
-                  textShadow: '0 0 10px #00ff00'
+                  filter: 'drop-shadow(0 0 10px rgba(0, 255, 255, 0.5))',
+                  letterSpacing: '2px'
                 }}>
                   {displayText}
-                  <span style={{ animation: 'blink 1s infinite' }}>_</span>
+                  <span style={{ 
+                    animation: 'blink 1s infinite',
+                    color: '#00ffff',
+                    textShadow: '0 0 10px #00ffff'
+                  }}>▮</span>
                 </h1>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: '1rem', fontSize: '0.8rem' }}>
-              <span style={{ color: '#ffff00' }}>[ENCRYPTED]</span>
-              <span style={{ color: '#00ff00' }}>[ANONYMOUS]</span>
-              <span style={{ color: '#ff0000' }}>[OFFLINE]</span>
+            <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.9rem', alignItems: 'center' }}>
+              <span style={{ 
+                color: '#ffff00',
+                textShadow: '0 0 10px #ffff00, 0 0 20px #ffff00, 0 0 30px #ff9900',
+                padding: '6px 16px',
+                border: '2px solid transparent',
+                borderImage: 'linear-gradient(135deg, #ffff00, #ff9900) 1',
+                borderRadius: '6px',
+                background: 'linear-gradient(135deg, rgba(255, 255, 0, 0.2), rgba(255, 153, 0, 0.1))',
+                boxShadow: '0 0 20px rgba(255, 255, 0, 0.4), inset 0 0 20px rgba(255, 255, 0, 0.1)',
+                animation: 'flicker 4s ease-in-out infinite',
+                fontWeight: 'bold',
+                letterSpacing: '1px',
+                position: 'relative',
+                overflow: 'hidden'
+              }}>
+                <span style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: '-100%',
+                  width: '100%',
+                  height: '100%',
+                  background: 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent)',
+                  animation: 'slideGlow 3s ease-in-out infinite'
+                }}></span>
+                🔐 ENCRYPTED
+              </span>
+              <span style={{ 
+                color: '#00ff00',
+                textShadow: '0 0 10px #00ff00, 0 0 20px #00ff00, 0 0 30px #00ff00',
+                padding: '6px 16px',
+                border: '2px solid transparent',
+                borderImage: 'linear-gradient(135deg, #00ff00, #00ffff) 1',
+                borderRadius: '6px',
+                background: 'linear-gradient(135deg, rgba(0, 255, 0, 0.2), rgba(0, 255, 255, 0.1))',
+                boxShadow: '0 0 20px rgba(0, 255, 0, 0.4), inset 0 0 20px rgba(0, 255, 0, 0.1)',
+                animation: 'flicker 3s ease-in-out infinite',
+                fontWeight: 'bold',
+                letterSpacing: '1px',
+                position: 'relative',
+                overflow: 'hidden'
+              }}>
+                <span style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: '-100%',
+                  width: '100%',
+                  height: '100%',
+                  background: 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent)',
+                  animation: 'slideGlow 2.5s ease-in-out infinite'
+                }}></span>
+                👤 ANONYMOUS
+              </span>
+              <span style={{ 
+                color: '#00ffff',
+                textShadow: '0 0 10px #00ffff, 0 0 20px #00ffff, 0 0 30px #ff00ff',
+                padding: '6px 16px',
+                border: '2px solid transparent',
+                borderImage: 'linear-gradient(135deg, #00ffff, #ff00ff) 1',
+                borderRadius: '6px',
+                background: 'linear-gradient(135deg, rgba(0, 255, 255, 0.2), rgba(255, 0, 255, 0.1))',
+                boxShadow: '0 0 20px rgba(0, 255, 255, 0.4), inset 0 0 20px rgba(0, 255, 255, 0.1)',
+                animation: 'electricArc 3s ease-in-out infinite',
+                fontWeight: 'bold',
+                letterSpacing: '1px',
+                position: 'relative',
+                overflow: 'hidden'
+              }}>
+                <span style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: '-100%',
+                  width: '100%',
+                  height: '100%',
+                  background: 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent)',
+                  animation: 'slideGlow 2s ease-in-out infinite'
+                }}></span>
+                ⚡ ONLINE
+              </span>
             </div>
           </div>
         </header>
@@ -395,28 +612,60 @@ Type 'help' for available commands.`
         {/* Navigation */}
         <div style={{ 
           display: 'flex', 
-          gap: '0', 
-          backgroundColor: 'rgba(0,0,0,0.9)', 
-          borderBottom: '1px solid #00ff00',
-          padding: '0'
+          gap: '2px', 
+          background: 'linear-gradient(180deg, rgba(0,0,0,0.95) 0%, rgba(10,10,30,0.90) 100%)',
+          borderBottom: '2px solid',
+          borderImage: 'linear-gradient(90deg, #00ff00, #00ffff, #ff00ff, #00ff00) 1',
+          padding: '0.5rem',
+          backdropFilter: 'blur(10px)'
         }}>
-          {['terminal', 'modules', 'scan', 'exploits', 'logs'].map((tab) => (
+          {[
+            { id: 'terminal', icon: '💻', label: 'TERMINAL' },
+            { id: 'modules', icon: '🔧', label: 'MODULES' },
+            { id: 'scan', icon: '🔍', label: 'SCANNER' },
+            { id: 'exploits', icon: '⚔️', label: 'EXPLOITS' },
+            { id: 'logs', icon: '�', label: 'USER MGMT' }
+          ].map((tab) => (
             <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
               style={{
-                padding: '0.75rem 1.5rem',
-                fontSize: '0.8rem',
+                padding: '1rem 2rem',
+                fontSize: '0.9rem',
                 fontFamily: 'Courier New, monospace',
-                border: 'none',
+                fontWeight: 'bold',
+                letterSpacing: '1px',
+                border: activeTab === tab.id ? '2px solid' : '2px solid transparent',
+                borderImage: activeTab === tab.id ? 'linear-gradient(135deg, #00ff00, #00ffff) 1' : 'none',
                 cursor: 'pointer',
-                backgroundColor: activeTab === tab ? '#00ff00' : 'transparent',
-                color: activeTab === tab ? '#000000' : '#00ff00',
-                transition: 'all 0.2s',
-                textTransform: 'uppercase'
+                background: activeTab === tab.id 
+                  ? 'linear-gradient(135deg, rgba(0, 255, 0, 0.2), rgba(0, 255, 255, 0.2))' 
+                  : 'rgba(0, 0, 0, 0.5)',
+                color: activeTab === tab.id ? '#00ffff' : '#00ff00',
+                transition: 'all 0.3s ease',
+                textTransform: 'uppercase',
+                boxShadow: activeTab === tab.id 
+                  ? '0 0 20px rgba(0, 255, 255, 0.5), inset 0 0 20px rgba(0, 255, 255, 0.1)' 
+                  : 'none',
+                textShadow: activeTab === tab.id ? '0 0 10px #00ffff' : 'none',
+                position: 'relative',
+                overflow: 'hidden'
+              }}
+              onMouseEnter={(e) => {
+                if (activeTab !== tab.id) {
+                  e.currentTarget.style.background = 'rgba(0, 255, 0, 0.1)'
+                  e.currentTarget.style.boxShadow = '0 0 15px rgba(0, 255, 0, 0.3)'
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (activeTab !== tab.id) {
+                  e.currentTarget.style.background = 'rgba(0, 0, 0, 0.5)'
+                  e.currentTarget.style.boxShadow = 'none'
+                }
               }}
             >
-              [{tab}]
+              <span style={{ marginRight: '0.5rem' }}>{tab.icon}</span>
+              {tab.label}
             </button>
           ))}
         </div>
@@ -490,15 +739,61 @@ Type 'help' for available commands.`}
             </div>
 
             {/* SQL Injection Module */}
-            <div style={{ border: '1px solid #00ff00', backgroundColor: 'rgba(0,255,0,0.05)', padding: '1.5rem', marginBottom: '2rem' }}>
-              <div style={{ color: '#ffff00', fontSize: '1.2rem', marginBottom: '1rem' }}>
+            <div style={{ 
+              border: '3px solid transparent',
+              borderImage: 'linear-gradient(135deg, #00ff00, #00ffff, #00ff00) 1',
+              background: 'linear-gradient(135deg, rgba(0,255,0,0.08), rgba(0,255,255,0.05))',
+              padding: '2rem', 
+              marginBottom: '2rem',
+              borderRadius: '12px',
+              boxShadow: '0 0 40px rgba(0, 255, 0, 0.3), inset 0 0 40px rgba(0, 0, 0, 0.4)',
+              position: 'relative',
+              overflow: 'hidden',
+              animation: 'borderGlow 4s ease-in-out infinite'
+            }}>
+              <div style={{
+                position: 'absolute',
+                top: '-50%',
+                left: '-50%',
+                width: '200%',
+                height: '200%',
+                background: 'conic-gradient(from 0deg, transparent, rgba(0, 255, 0, 0.1), transparent 30%)',
+                animation: 'rotate3d 8s linear infinite',
+                pointerEvents: 'none'
+              }} />
+              <div style={{ 
+                color: '#00ff00', 
+                fontSize: '1.8rem', 
+                marginBottom: '1.5rem',
+                fontWeight: 'bold',
+                textTransform: 'uppercase',
+                letterSpacing: '4px',
+                textShadow: '0 0 20px rgba(0, 255, 0, 1), 0 0 40px rgba(0, 255, 0, 0.6), 0 0 60px rgba(0, 255, 0, 0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '1rem',
+                position: 'relative',
+                zIndex: 1,
+                animation: 'neonPulse 3s ease-in-out infinite'
+              }}>
+                <span style={{ fontSize: '2rem' }}>💉</span>
                 [SQL_INJECTION.exe]
+                <span style={{ fontSize: '2rem' }}>💉</span>
               </div>
               
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
                 <div>
-                  <label style={{ color: '#00ff00', fontSize: '0.8rem', display: 'block', marginBottom: '0.5rem' }}>
-                    Username:
+                  <label style={{ 
+                    color: '#00ffff', 
+                    fontSize: '0.9rem', 
+                    fontWeight: 'bold',
+                    display: 'block', 
+                    marginBottom: '0.75rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: '1px',
+                    textShadow: '0 0 10px rgba(0, 255, 255, 0.5)'
+                  }}>
+                    🔐 Username:
                   </label>
                   <input
                     type="text"
@@ -507,18 +802,40 @@ Type 'help' for available commands.`}
                     placeholder="Enter username or ' OR '1'='1"
                     style={{
                       width: '100%',
-                      padding: '0.5rem',
-                      backgroundColor: 'rgba(0,0,0,0.5)',
-                      border: '1px solid #00ff00',
-                      color: '#00ff00',
+                      padding: '0.75rem 1rem',
+                      background: 'linear-gradient(135deg, rgba(0,0,0,0.9), rgba(10,10,30,0.9))',
+                      border: '2px solid transparent',
+                      borderImage: 'linear-gradient(135deg, #00ff00, #00ffff) 1',
+                      color: '#00ffff',
                       fontFamily: 'Courier New, monospace',
-                      fontSize: '0.9rem'
+                      fontSize: '1rem',
+                      borderRadius: '4px',
+                      boxShadow: 'inset 0 2px 10px rgba(0, 0, 0, 0.5), 0 0 15px rgba(0, 255, 255, 0.2)',
+                      transition: 'all 0.3s ease',
+                      outline: 'none'
+                    }}
+                    onFocus={(e) => {
+                      e.target.style.boxShadow = 'inset 0 2px 10px rgba(0, 0, 0, 0.5), 0 0 25px rgba(0, 255, 255, 0.4)';
+                      e.target.style.transform = 'translateY(-2px)';
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.boxShadow = 'inset 0 2px 10px rgba(0, 0, 0, 0.5), 0 0 15px rgba(0, 255, 255, 0.2)';
+                      e.target.style.transform = 'translateY(0)';
                     }}
                   />
                 </div>
                 <div>
-                  <label style={{ color: '#00ff00', fontSize: '0.8rem', display: 'block', marginBottom: '0.5rem' }}>
-                    Password:
+                  <label style={{ 
+                    color: '#00ffff', 
+                    fontSize: '0.9rem', 
+                    fontWeight: 'bold',
+                    display: 'block', 
+                    marginBottom: '0.75rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: '1px',
+                    textShadow: '0 0 10px rgba(0, 255, 255, 0.5)'
+                  }}>
+                    🔑 Password:
                   </label>
                   <input
                     type="text"
@@ -527,30 +844,68 @@ Type 'help' for available commands.`}
                     placeholder="Enter password or ' OR '1'='1"
                     style={{
                       width: '100%',
-                      padding: '0.5rem',
-                      backgroundColor: 'rgba(0,0,0,0.5)',
-                      border: '1px solid #00ff00',
-                      color: '#00ff00',
+                      padding: '0.75rem 1rem',
+                      background: 'linear-gradient(135deg, rgba(0,0,0,0.9), rgba(10,10,30,0.9))',
+                      border: '2px solid transparent',
+                      borderImage: 'linear-gradient(135deg, #00ff00, #00ffff) 1',
+                      color: '#00ffff',
                       fontFamily: 'Courier New, monospace',
-                      fontSize: '0.9rem'
+                      fontSize: '1rem',
+                      borderRadius: '4px',
+                      boxShadow: 'inset 0 2px 10px rgba(0, 0, 0, 0.5), 0 0 15px rgba(0, 255, 255, 0.2)',
+                      transition: 'all 0.3s ease',
+                      outline: 'none'
+                    }}
+                    onFocus={(e) => {
+                      e.target.style.boxShadow = 'inset 0 2px 10px rgba(0, 0, 0, 0.5), 0 0 25px rgba(0, 255, 255, 0.4)';
+                      e.target.style.transform = 'translateY(-2px)';
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.boxShadow = 'inset 0 2px 10px rgba(0, 0, 0, 0.5), 0 0 15px rgba(0, 255, 255, 0.2)';
+                      e.target.style.transform = 'translateY(0)';
                     }}
                   />
                 </div>
               </div>
               
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ color: '#00ff00', fontSize: '0.8rem', display: 'block', marginBottom: '0.5rem' }}>
-                  Test Mode:
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ 
+                  color: '#00ffff', 
+                  fontSize: '0.9rem', 
+                  fontWeight: 'bold',
+                  display: 'block', 
+                  marginBottom: '0.75rem',
+                  textTransform: 'uppercase',
+                  letterSpacing: '1px',
+                  textShadow: '0 0 10px rgba(0, 255, 255, 0.5)'
+                }}>
+                  ⚙️ Test Mode:
                 </label>
                 <select
                   value={sqlMode}
                   onChange={(e) => setSqlMode(e.target.value)}
                   style={{
-                    padding: '0.5rem',
-                    backgroundColor: 'rgba(0,0,0,0.5)',
-                    border: '1px solid #00ff00',
-                    color: '#00ff00',
-                    fontFamily: 'Courier New, monospace'
+                    padding: '0.75rem 1rem',
+                    background: 'linear-gradient(135deg, rgba(0,0,0,0.9), rgba(10,10,30,0.9))',
+                    border: '2px solid transparent',
+                    borderImage: 'linear-gradient(135deg, #ff00ff, #00ffff) 1',
+                    color: '#00ffff',
+                    fontFamily: 'Courier New, monospace',
+                    fontSize: '1rem',
+                    borderRadius: '4px',
+                    boxShadow: '0 0 15px rgba(255, 0, 255, 0.3)',
+                    transition: 'all 0.3s ease',
+                    outline: 'none',
+                    cursor: 'pointer',
+                    width: '100%'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.boxShadow = '0 0 25px rgba(255, 0, 255, 0.5)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.boxShadow = '0 0 15px rgba(255, 0, 255, 0.3)';
+                    e.currentTarget.style.transform = 'translateY(0)';
                   }}
                 >
                   <option value="safe">Safe Mode (Protected)</option>
@@ -562,17 +917,41 @@ Type 'help' for available commands.`}
                 onClick={testSQLInjection}
                 disabled={sqlLoading}
                 style={{
-                  padding: '0.75rem 1.5rem',
-                  backgroundColor: sqlLoading ? 'rgba(0,255,0,0.3)' : 'transparent',
-                  border: '1px solid #00ff00',
-                  color: '#00ff00',
+                  padding: '1rem 2rem',
+                  background: sqlLoading 
+                    ? 'linear-gradient(135deg, rgba(0,255,0,0.3), rgba(0,255,255,0.3))'
+                    : 'linear-gradient(135deg, rgba(0,255,0,0.1), rgba(0,255,255,0.1))',
+                  border: '2px solid',
+                  borderImage: 'linear-gradient(135deg, #00ff00, #00ffff) 1',
+                  color: sqlLoading ? '#ffff00' : '#00ffff',
                   cursor: sqlLoading ? 'not-allowed' : 'pointer',
                   fontFamily: 'Courier New, monospace',
-                  fontSize: '0.9rem',
-                  marginRight: '1rem'
+                  fontSize: '1rem',
+                  fontWeight: 'bold',
+                  marginRight: '1rem',
+                  textShadow: sqlLoading ? '0 0 10px #ffff00' : '0 0 10px #00ffff',
+                  boxShadow: sqlLoading 
+                    ? '0 0 20px rgba(255, 255, 0, 0.5), inset 0 0 20px rgba(255, 255, 0, 0.1)'
+                    : '0 0 20px rgba(0, 255, 255, 0.3), inset 0 0 20px rgba(0, 255, 255, 0.05)',
+                  transition: 'all 0.3s ease',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  letterSpacing: '1px'
+                }}
+                onMouseEnter={(e) => {
+                  if (!sqlLoading) {
+                    e.currentTarget.style.boxShadow = '0 0 30px rgba(0, 255, 255, 0.6), inset 0 0 30px rgba(0, 255, 255, 0.1)'
+                    e.currentTarget.style.transform = 'translateY(-2px)'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!sqlLoading) {
+                    e.currentTarget.style.boxShadow = '0 0 20px rgba(0, 255, 255, 0.3), inset 0 0 20px rgba(0, 255, 255, 0.05)'
+                    e.currentTarget.style.transform = 'translateY(0)'
+                  }
                 }}
               >
-                {sqlLoading ? '[TESTING...]' : '[EXECUTE SQL INJECTION]'}
+                {sqlLoading ? '⚡ TESTING...' : '🚀 EXECUTE SQL INJECTION'}
               </button>
               
               <button 
@@ -583,20 +962,75 @@ Type 'help' for available commands.`}
                 }}
                 style={{
                   padding: '0.75rem 1.5rem',
-                  backgroundColor: 'transparent',
-                  border: '1px solid #ffff00',
+                  background: 'linear-gradient(135deg, rgba(255,255,0,0.1), rgba(255,150,0,0.1))',
+                  border: '2px solid transparent',
+                  borderImage: 'linear-gradient(135deg, #ffff00, #ff9900) 1',
                   color: '#ffff00',
                   cursor: 'pointer',
                   fontFamily: 'Courier New, monospace',
-                  fontSize: '0.9rem'
+                  fontSize: '0.95rem',
+                  fontWeight: 'bold',
+                  letterSpacing: '1px',
+                  boxShadow: '0 0 15px rgba(255, 255, 0, 0.3)',
+                  transition: 'all 0.3s ease',
+                  textShadow: '0 0 10px rgba(255, 255, 0, 0.5)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.boxShadow = '0 0 25px rgba(255, 255, 0, 0.6)';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.boxShadow = '0 0 15px rgba(255, 255, 0, 0.3)';
+                  e.currentTarget.style.transform = 'translateY(0)';
                 }}
               >
-                [USE EXPLOIT PAYLOAD]
+                💥 [USE EXPLOIT PAYLOAD]
               </button>
               
               {sqlResult && (
-                <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: 'rgba(0,0,0,0.7)', border: '1px solid #00ff00' }}>
-                  <pre style={{ color: sqlResult.success ? '#00ff00' : '#ff0000', whiteSpace: 'pre-wrap', fontSize: '0.85rem' }}>
+                <div style={{ 
+                  marginTop: '2rem', 
+                  padding: '1.5rem', 
+                  background: 'linear-gradient(135deg, rgba(0,0,0,0.9), rgba(10,30,10,0.9))',
+                  border: '2px solid transparent',
+                  borderImage: `linear-gradient(135deg, ${sqlResult.success ? '#00ff00' : '#ff0000'}, ${sqlResult.success ? '#00ffff' : '#ff6600'}) 1`,
+                  borderRadius: '8px',
+                  boxShadow: `0 0 30px ${sqlResult.success ? 'rgba(0, 255, 0, 0.3)' : 'rgba(255, 0, 0, 0.3)'}, inset 0 0 30px rgba(0, 0, 0, 0.5)`,
+                  position: 'relative',
+                  overflow: 'hidden'
+                }}>
+                  <div style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: '3px',
+                    background: `linear-gradient(90deg, transparent, ${sqlResult.success ? '#00ff00' : '#ff0000'}, transparent)`,
+                    animation: 'shimmer 2s infinite'
+                  }} />
+                  <div style={{
+                    color: '#00ffff',
+                    fontSize: '1rem',
+                    fontWeight: 'bold',
+                    marginBottom: '1rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: '2px',
+                    textShadow: '0 0 10px rgba(0, 255, 255, 0.5)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem'
+                  }}>
+                    {sqlResult.success ? '✅ ATTACK SUCCESSFUL' : '❌ ATTACK BLOCKED'}
+                  </div>
+                  <pre style={{ 
+                    color: sqlResult.success ? '#00ff00' : '#ff6600', 
+                    whiteSpace: 'pre-wrap', 
+                    fontSize: '0.9rem',
+                    fontFamily: 'Courier New, monospace',
+                    lineHeight: '1.6',
+                    textShadow: `0 0 5px ${sqlResult.success ? 'rgba(0, 255, 0, 0.3)' : 'rgba(255, 102, 0, 0.3)'}`,
+                    margin: 0
+                  }}>
                     {JSON.stringify(sqlResult, null, 2)}
                   </pre>
                 </div>
@@ -604,14 +1038,70 @@ Type 'help' for available commands.`}
             </div>
 
             {/* XSS Module */}
-            <div style={{ border: '1px solid #00ff00', backgroundColor: 'rgba(0,255,0,0.05)', padding: '1.5rem', marginBottom: '2rem' }}>
-              <div style={{ color: '#ffff00', fontSize: '1.2rem', marginBottom: '1rem' }}>
+            <div style={{ 
+              border: '3px solid transparent',
+              borderImage: 'linear-gradient(135deg, #ff00ff, #00ffff, #ff00ff) 1',
+              background: 'linear-gradient(135deg, rgba(255,0,255,0.08), rgba(0,255,255,0.05))',
+              padding: '2rem', 
+              marginBottom: '2rem',
+              borderRadius: '12px',
+              boxShadow: '0 0 40px rgba(255, 0, 255, 0.3), inset 0 0 40px rgba(0, 0, 0, 0.4)',
+              position: 'relative',
+              overflow: 'hidden',
+              animation: 'electricArc 4s ease-in-out infinite'
+            }}>
+              <div style={{
+                position: 'absolute',
+                top: '-50%',
+                right: '-50%',
+                width: '200%',
+                height: '200%',
+                background: 'conic-gradient(from 180deg, transparent, rgba(255, 0, 255, 0.1), transparent 30%)',
+                animation: 'rotate3d 10s linear infinite reverse',
+                pointerEvents: 'none'
+              }} />
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: '3px',
+                background: 'linear-gradient(90deg, transparent, #ff00ff, #00ffff, #ff00ff, transparent)',
+                backgroundSize: '200% 100%',
+                animation: 'shimmer 3s infinite'
+              }} />
+              <div style={{ 
+                color: '#ff00ff', 
+                fontSize: '1.8rem', 
+                marginBottom: '1.5rem',
+                fontWeight: 'bold',
+                textTransform: 'uppercase',
+                letterSpacing: '4px',
+                textShadow: '0 0 20px rgba(255, 0, 255, 1), 0 0 40px rgba(255, 0, 255, 0.6), 0 0 60px rgba(255, 0, 255, 0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '1rem',
+                position: 'relative',
+                zIndex: 1,
+                animation: 'neonPulse 2.5s ease-in-out infinite'
+              }}>
+                <span style={{ fontSize: '2rem' }}>⚡</span>
                 [XSS_PAYLOAD.exe]
+                <span style={{ fontSize: '2rem' }}>⚡</span>
               </div>
               
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ color: '#00ff00', fontSize: '0.8rem', display: 'block', marginBottom: '0.5rem' }}>
-                  Author:
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ 
+                  color: '#ff00ff', 
+                  fontSize: '0.9rem', 
+                  fontWeight: 'bold',
+                  display: 'block', 
+                  marginBottom: '0.75rem',
+                  textTransform: 'uppercase',
+                  letterSpacing: '1px',
+                  textShadow: '0 0 10px rgba(255, 0, 255, 0.5)'
+                }}>
+                  👤 Author:
                 </label>
                 <input
                   type="text"
@@ -620,19 +1110,41 @@ Type 'help' for available commands.`}
                   placeholder="Enter author name"
                   style={{
                     width: '100%',
-                    padding: '0.5rem',
-                    backgroundColor: 'rgba(0,0,0,0.5)',
-                    border: '1px solid #00ff00',
-                    color: '#00ff00',
+                    padding: '0.75rem 1rem',
+                    background: 'linear-gradient(135deg, rgba(0,0,0,0.9), rgba(30,10,30,0.9))',
+                    border: '2px solid transparent',
+                    borderImage: 'linear-gradient(135deg, #ff00ff, #00ffff) 1',
+                    color: '#ff00ff',
                     fontFamily: 'Courier New, monospace',
-                    fontSize: '0.9rem'
+                    fontSize: '1rem',
+                    borderRadius: '4px',
+                    boxShadow: 'inset 0 2px 10px rgba(0, 0, 0, 0.5), 0 0 15px rgba(255, 0, 255, 0.2)',
+                    transition: 'all 0.3s ease',
+                    outline: 'none'
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.boxShadow = 'inset 0 2px 10px rgba(0, 0, 0, 0.5), 0 0 25px rgba(255, 0, 255, 0.4)';
+                    e.target.style.transform = 'translateY(-2px)';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.boxShadow = 'inset 0 2px 10px rgba(0, 0, 0, 0.5), 0 0 15px rgba(255, 0, 255, 0.2)';
+                    e.target.style.transform = 'translateY(0)';
                   }}
                 />
               </div>
               
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ color: '#00ff00', fontSize: '0.8rem', display: 'block', marginBottom: '0.5rem' }}>
-                  Comment:
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ 
+                  color: '#ff00ff', 
+                  fontSize: '0.9rem', 
+                  fontWeight: 'bold',
+                  display: 'block', 
+                  marginBottom: '0.75rem',
+                  textTransform: 'uppercase',
+                  letterSpacing: '1px',
+                  textShadow: '0 0 10px rgba(255, 0, 255, 0.5)'
+                }}>
+                  💬 Comment:
                 </label>
                 <textarea
                   value={xssComment}
@@ -641,30 +1153,69 @@ Type 'help' for available commands.`}
                   rows={4}
                   style={{
                     width: '100%',
-                    padding: '0.5rem',
-                    backgroundColor: 'rgba(0,0,0,0.5)',
-                    border: '1px solid #00ff00',
-                    color: '#00ff00',
+                    padding: '0.75rem 1rem',
+                    background: 'linear-gradient(135deg, rgba(0,0,0,0.9), rgba(30,10,30,0.9))',
+                    border: '2px solid transparent',
+                    borderImage: 'linear-gradient(135deg, #ff00ff, #00ffff) 1',
+                    color: '#ff00ff',
                     fontFamily: 'Courier New, monospace',
-                    fontSize: '0.9rem',
-                    resize: 'vertical'
+                    fontSize: '1rem',
+                    resize: 'vertical',
+                    borderRadius: '4px',
+                    boxShadow: 'inset 0 2px 10px rgba(0, 0, 0, 0.5), 0 0 15px rgba(255, 0, 255, 0.2)',
+                    transition: 'all 0.3s ease',
+                    outline: 'none',
+                    lineHeight: '1.6'
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.boxShadow = 'inset 0 2px 10px rgba(0, 0, 0, 0.5), 0 0 25px rgba(255, 0, 255, 0.4)';
+                    e.target.style.transform = 'translateY(-2px)';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.boxShadow = 'inset 0 2px 10px rgba(0, 0, 0, 0.5), 0 0 15px rgba(255, 0, 255, 0.2)';
+                    e.target.style.transform = 'translateY(0)';
                   }}
                 />
               </div>
               
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ color: '#00ff00', fontSize: '0.8rem', display: 'block', marginBottom: '0.5rem' }}>
-                  Test Mode:
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ 
+                  color: '#ff00ff', 
+                  fontSize: '0.9rem', 
+                  fontWeight: 'bold',
+                  display: 'block', 
+                  marginBottom: '0.75rem',
+                  textTransform: 'uppercase',
+                  letterSpacing: '1px',
+                  textShadow: '0 0 10px rgba(255, 0, 255, 0.5)'
+                }}>
+                  ⚙️ Test Mode:
                 </label>
                 <select
                   value={xssMode}
                   onChange={(e) => setXssMode(e.target.value)}
                   style={{
-                    padding: '0.5rem',
-                    backgroundColor: 'rgba(0,0,0,0.5)',
-                    border: '1px solid #00ff00',
-                    color: '#00ff00',
-                    fontFamily: 'Courier New, monospace'
+                    padding: '0.75rem 1rem',
+                    background: 'linear-gradient(135deg, rgba(0,0,0,0.9), rgba(30,10,30,0.9))',
+                    border: '2px solid transparent',
+                    borderImage: 'linear-gradient(135deg, #ff00ff, #00ffff) 1',
+                    color: '#ff00ff',
+                    fontFamily: 'Courier New, monospace',
+                    fontSize: '1rem',
+                    borderRadius: '4px',
+                    boxShadow: '0 0 15px rgba(255, 0, 255, 0.3)',
+                    transition: 'all 0.3s ease',
+                    outline: 'none',
+                    cursor: 'pointer',
+                    width: '100%'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.boxShadow = '0 0 25px rgba(255, 0, 255, 0.5)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.boxShadow = '0 0 15px rgba(255, 0, 255, 0.3)';
+                    e.currentTarget.style.transform = 'translateY(0)';
                   }}
                 >
                   <option value="safe">Safe Mode (Sanitized)</option>
@@ -676,17 +1227,41 @@ Type 'help' for available commands.`}
                 onClick={testXSS}
                 disabled={xssLoading}
                 style={{
-                  padding: '0.75rem 1.5rem',
-                  backgroundColor: xssLoading ? 'rgba(0,255,0,0.3)' : 'transparent',
-                  border: '1px solid #00ff00',
-                  color: '#00ff00',
+                  padding: '1rem 2rem',
+                  background: xssLoading 
+                    ? 'linear-gradient(135deg, rgba(255,0,255,0.3), rgba(0,255,255,0.3))'
+                    : 'linear-gradient(135deg, rgba(255,0,255,0.1), rgba(0,255,255,0.1))',
+                  border: '2px solid',
+                  borderImage: 'linear-gradient(135deg, #ff00ff, #00ffff) 1',
+                  color: xssLoading ? '#ffff00' : '#ff00ff',
                   cursor: xssLoading ? 'not-allowed' : 'pointer',
                   fontFamily: 'Courier New, monospace',
-                  fontSize: '0.9rem',
-                  marginRight: '1rem'
+                  fontSize: '1rem',
+                  fontWeight: 'bold',
+                  marginRight: '1rem',
+                  textShadow: xssLoading ? '0 0 10px #ffff00' : '0 0 10px #ff00ff',
+                  boxShadow: xssLoading 
+                    ? '0 0 20px rgba(255, 255, 0, 0.5), inset 0 0 20px rgba(255, 255, 0, 0.1)'
+                    : '0 0 20px rgba(255, 0, 255, 0.3), inset 0 0 20px rgba(255, 0, 255, 0.05)',
+                  transition: 'all 0.3s ease',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  letterSpacing: '1px'
+                }}
+                onMouseEnter={(e) => {
+                  if (!xssLoading) {
+                    e.currentTarget.style.boxShadow = '0 0 30px rgba(255, 0, 255, 0.6), inset 0 0 30px rgba(255, 0, 255, 0.1)'
+                    e.currentTarget.style.transform = 'translateY(-2px)'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!xssLoading) {
+                    e.currentTarget.style.boxShadow = '0 0 20px rgba(255, 0, 255, 0.3), inset 0 0 20px rgba(255, 0, 255, 0.05)'
+                    e.currentTarget.style.transform = 'translateY(0)'
+                  }
                 }}
               >
-                {xssLoading ? '[TESTING...]' : '[EXECUTE XSS ATTACK]'}
+                {xssLoading ? '⚡ TESTING...' : '🚀 EXECUTE XSS ATTACK'}
               </button>
               
               <button 
@@ -697,20 +1272,75 @@ Type 'help' for available commands.`}
                 }}
                 style={{
                   padding: '0.75rem 1.5rem',
-                  backgroundColor: 'transparent',
-                  border: '1px solid #ffff00',
+                  background: 'linear-gradient(135deg, rgba(255,255,0,0.1), rgba(255,150,0,0.1))',
+                  border: '2px solid transparent',
+                  borderImage: 'linear-gradient(135deg, #ffff00, #ff9900) 1',
                   color: '#ffff00',
                   cursor: 'pointer',
                   fontFamily: 'Courier New, monospace',
-                  fontSize: '0.9rem'
+                  fontSize: '0.95rem',
+                  fontWeight: 'bold',
+                  letterSpacing: '1px',
+                  boxShadow: '0 0 15px rgba(255, 255, 0, 0.3)',
+                  transition: 'all 0.3s ease',
+                  textShadow: '0 0 10px rgba(255, 255, 0, 0.5)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.boxShadow = '0 0 25px rgba(255, 255, 0, 0.6)';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.boxShadow = '0 0 15px rgba(255, 255, 0, 0.3)';
+                  e.currentTarget.style.transform = 'translateY(0)';
                 }}
               >
-                [USE EXPLOIT PAYLOAD]
+                💥 [USE EXPLOIT PAYLOAD]
               </button>
               
               {xssResult && (
-                <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: 'rgba(0,0,0,0.7)', border: '1px solid #00ff00' }}>
-                  <pre style={{ color: xssResult.success ? '#00ff00' : '#ff0000', whiteSpace: 'pre-wrap', fontSize: '0.85rem' }}>
+                <div style={{ 
+                  marginTop: '2rem', 
+                  padding: '1.5rem', 
+                  background: 'linear-gradient(135deg, rgba(0,0,0,0.9), rgba(30,10,30,0.9))',
+                  border: '2px solid transparent',
+                  borderImage: `linear-gradient(135deg, ${xssResult.success ? '#ff00ff' : '#ff0000'}, ${xssResult.success ? '#00ffff' : '#ff6600'}) 1`,
+                  borderRadius: '8px',
+                  boxShadow: `0 0 30px ${xssResult.success ? 'rgba(255, 0, 255, 0.3)' : 'rgba(255, 0, 0, 0.3)'}, inset 0 0 30px rgba(0, 0, 0, 0.5)`,
+                  position: 'relative',
+                  overflow: 'hidden'
+                }}>
+                  <div style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: '3px',
+                    background: `linear-gradient(90deg, transparent, ${xssResult.success ? '#ff00ff' : '#ff0000'}, transparent)`,
+                    animation: 'shimmer 2s infinite'
+                  }} />
+                  <div style={{
+                    color: '#ff00ff',
+                    fontSize: '1rem',
+                    fontWeight: 'bold',
+                    marginBottom: '1rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: '2px',
+                    textShadow: '0 0 10px rgba(255, 0, 255, 0.5)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem'
+                  }}>
+                    {xssResult.success ? '✅ ATTACK SUCCESSFUL' : '❌ ATTACK BLOCKED'}
+                  </div>
+                  <pre style={{ 
+                    color: xssResult.success ? '#ff00ff' : '#ff6600', 
+                    whiteSpace: 'pre-wrap', 
+                    fontSize: '0.9rem',
+                    fontFamily: 'Courier New, monospace',
+                    lineHeight: '1.6',
+                    textShadow: `0 0 5px ${xssResult.success ? 'rgba(255, 0, 255, 0.3)' : 'rgba(255, 102, 0, 0.3)'}`,
+                    margin: 0
+                  }}>
                     {JSON.stringify(xssResult, null, 2)}
                   </pre>
                 </div>
@@ -1068,33 +1698,336 @@ Enter selection number or type 'back' to return`}
           </div>
         )}
 
-        {/* Logs Tab */}
+        {/* User Management Tab */}
         {activeTab === 'logs' && (
-          <div style={{ padding: '1rem' }}>
-            <pre style={{ color: '#00ff00', margin: 0 }}>
-{`╔══════════════════════════════════════════════════════════════╗
-║                     SYSTEM LOGS                                 ║
-╚══════════════════════════════════════════════════════════════╝
+          <div style={{ padding: '2rem' }}>
+            {/* Header */}
+            <div style={{
+              marginBottom: '2rem',
+              borderBottom: '2px solid',
+              borderImage: 'linear-gradient(90deg, #00ff00, #00ffff) 1',
+              paddingBottom: '1rem'
+            }}>
+              <h2 style={{
+                color: '#00ffff',
+                fontSize: '2rem',
+                fontWeight: 'bold',
+                textTransform: 'uppercase',
+                letterSpacing: '3px',
+                textShadow: '0 0 20px rgba(0, 255, 255, 0.8)',
+                margin: 0
+              }}>
+                👥 USER REGISTRATION & MANAGEMENT
+              </h2>
+              <p style={{
+                color: '#00ff00',
+                fontSize: '0.9rem',
+                marginTop: '0.5rem',
+                textShadow: '0 0 10px rgba(0, 255, 0, 0.5)'
+              }}>
+                Complete user registration with XSS Testing & Access Control Testing fields
+              </p>
+            </div>
 
-[2025-11-02T16:24:00.000Z] [INFO] System initialized
-[2025-11-02T16:24:01.000Z] [INFO] Neural interface connected
-[2025-11-02T16:24:02.000Z] [INFO] Encryption protocols active
-[2025-11-02T16:24:03.000Z] [WARN] Firewall status: DISABLED
-[2025-11-02T16:24:04.000Z] [INFO] Anonymous routing established
-[2025-11-02T16:24:05.000Z] [INFO] VPN connection: ACTIVE
-[2025-11-02T16:24:06.000Z] [SUCCESS] All exploit modules loaded
-[2025-11-02T16:24:07.000Z] [INFO] System ready for operations
-[2025-11-02T16:24:08.000Z] [ALERT] Intrusion detection system: OFFLINE
-[2025-11-02T16:24:09.000Z] [SUCCESS] Cloaking mode: ENGAGED
+            {/* New User Registration Form */}
+            <UserRegistrationForm />
 
-[+] Last breach attempt: None detected
-[+] Systems compromised: 0
-[+] Data exfiltrated: 0GB
-[+] Anonymous level: MAXIMUM
-[+] Trace probability: 0.001%
+            {/* Spacer */}
+            <div style={{ height: '2rem' }} />
 
-END OF LOG - ${isClient ? new Date().toLocaleTimeString() : '16:24:10'}`}
-            </pre>
+            {/* Old Add User Form - REMOVED, replaced with UserRegistrationForm above */}
+            {/* Add User Form */}
+            <div style={{
+              border: '2px solid transparent',
+              borderImage: 'linear-gradient(135deg, #00ff00, #00ffff) 1',
+              background: 'linear-gradient(135deg, rgba(0,255,0,0.05), rgba(0,255,255,0.05))',
+              padding: '2rem',
+              marginBottom: '2rem',
+              borderRadius: '8px',
+              boxShadow: '0 0 30px rgba(0, 255, 255, 0.2)'
+            }}>
+              <h3 style={{
+                color: '#00ff00',
+                fontSize: '1.3rem',
+                marginBottom: '1.5rem',
+                textShadow: '0 0 10px rgba(0, 255, 0, 0.5)'
+              }}>
+                ➕ CREATE NEW USER
+              </h3>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
+                <div>
+                  <label style={{
+                    color: '#00ffff',
+                    fontSize: '0.9rem',
+                    fontWeight: 'bold',
+                    display: 'block',
+                    marginBottom: '0.75rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: '1px',
+                    textShadow: '0 0 10px rgba(0, 255, 255, 0.5)'
+                  }}>
+                    📧 Email:
+                  </label>
+                  <input
+                    type="email"
+                    value={newUserEmail}
+                    onChange={(e) => setNewUserEmail(e.target.value)}
+                    placeholder="user@example.com"
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem 1rem',
+                      background: 'linear-gradient(135deg, rgba(0,0,0,0.9), rgba(10,10,30,0.9))',
+                      border: '2px solid transparent',
+                      borderImage: 'linear-gradient(135deg, #00ff00, #00ffff) 1',
+                      color: '#00ffff',
+                      fontFamily: 'Courier New, monospace',
+                      fontSize: '1rem',
+                      borderRadius: '4px',
+                      boxShadow: 'inset 0 2px 10px rgba(0, 0, 0, 0.5), 0 0 15px rgba(0, 255, 255, 0.2)',
+                      outline: 'none'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{
+                    color: '#00ffff',
+                    fontSize: '0.9rem',
+                    fontWeight: 'bold',
+                    display: 'block',
+                    marginBottom: '0.75rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: '1px',
+                    textShadow: '0 0 10px rgba(0, 255, 255, 0.5)'
+                  }}>
+                    👤 Name:
+                  </label>
+                  <input
+                    type="text"
+                    value={newUserName}
+                    onChange={(e) => setNewUserName(e.target.value)}
+                    placeholder="Full Name"
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem 1rem',
+                      background: 'linear-gradient(135deg, rgba(0,0,0,0.9), rgba(10,10,30,0.9))',
+                      border: '2px solid transparent',
+                      borderImage: 'linear-gradient(135deg, #00ff00, #00ffff) 1',
+                      color: '#00ffff',
+                      fontFamily: 'Courier New, monospace',
+                      fontSize: '1rem',
+                      borderRadius: '4px',
+                      boxShadow: 'inset 0 2px 10px rgba(0, 0, 0, 0.5), 0 0 15px rgba(0, 255, 255, 0.2)',
+                      outline: 'none'
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{
+                  color: '#00ffff',
+                  fontSize: '0.9rem',
+                  fontWeight: 'bold',
+                  display: 'block',
+                  marginBottom: '0.75rem',
+                  textTransform: 'uppercase',
+                  letterSpacing: '1px',
+                  textShadow: '0 0 10px rgba(0, 255, 255, 0.5)'
+                }}>
+                  🔐 Role:
+                </label>
+                <select
+                  value={newUserRole}
+                  onChange={(e) => setNewUserRole(e.target.value)}
+                  style={{
+                    padding: '0.75rem 1rem',
+                    background: 'linear-gradient(135deg, rgba(0,0,0,0.9), rgba(10,10,30,0.9))',
+                    border: '2px solid transparent',
+                    borderImage: 'linear-gradient(135deg, #ff00ff, #00ffff) 1',
+                    color: '#00ffff',
+                    fontFamily: 'Courier New, monospace',
+                    fontSize: '1rem',
+                    borderRadius: '4px',
+                    boxShadow: '0 0 15px rgba(255, 0, 255, 0.3)',
+                    outline: 'none',
+                    cursor: 'pointer',
+                    width: '100%'
+                  }}
+                >
+                  <option value="USER">USER - Standard User</option>
+                  <option value="ADMIN">ADMIN - Administrator</option>
+                  <option value="GUEST">GUEST - Guest Access</option>
+                </select>
+              </div>
+
+              <button
+                onClick={createUser}
+                disabled={userManagementLoading}
+                style={{
+                  padding: '1rem 2rem',
+                  background: userManagementLoading
+                    ? 'linear-gradient(135deg, rgba(0,255,0,0.3), rgba(0,255,255,0.3))'
+                    : 'linear-gradient(135deg, rgba(0,255,0,0.1), rgba(0,255,255,0.1))',
+                  border: '2px solid',
+                  borderImage: 'linear-gradient(135deg, #00ff00, #00ffff) 1',
+                  color: userManagementLoading ? '#ffff00' : '#00ffff',
+                  cursor: userManagementLoading ? 'not-allowed' : 'pointer',
+                  fontFamily: 'Courier New, monospace',
+                  fontSize: '1rem',
+                  fontWeight: 'bold',
+                  textShadow: userManagementLoading ? '0 0 10px #ffff00' : '0 0 10px #00ffff',
+                  boxShadow: userManagementLoading
+                    ? '0 0 20px rgba(255, 255, 0, 0.5)'
+                    : '0 0 20px rgba(0, 255, 255, 0.3)',
+                  transition: 'all 0.3s ease',
+                  letterSpacing: '1px',
+                  width: '100%'
+                }}
+              >
+                {userManagementLoading ? '⚡ CREATING...' : '🚀 CREATE USER'}
+              </button>
+
+              {/* Result Message */}
+              {userManagementResult && (
+                <div style={{
+                  marginTop: '1.5rem',
+                  padding: '1rem',
+                  background: userManagementResult.success
+                    ? 'linear-gradient(135deg, rgba(0,255,0,0.1), rgba(0,255,255,0.1))'
+                    : 'linear-gradient(135deg, rgba(255,0,0,0.1), rgba(255,102,0,0.1))',
+                  border: '2px solid',
+                  borderImage: userManagementResult.success
+                    ? 'linear-gradient(135deg, #00ff00, #00ffff) 1'
+                    : 'linear-gradient(135deg, #ff0000, #ff6600) 1',
+                  borderRadius: '4px',
+                  boxShadow: userManagementResult.success
+                    ? '0 0 20px rgba(0, 255, 0, 0.3)'
+                    : '0 0 20px rgba(255, 0, 0, 0.3)'
+                }}>
+                  <pre style={{
+                    color: userManagementResult.success ? '#00ff00' : '#ff6600',
+                    margin: 0,
+                    fontFamily: 'Courier New, monospace',
+                    fontSize: '0.9rem',
+                    whiteSpace: 'pre-wrap'
+                  }}>
+                    {JSON.stringify(userManagementResult, null, 2)}
+                  </pre>
+                </div>
+              )}
+            </div>
+
+            {/* Users List */}
+            <div style={{
+              border: '2px solid transparent',
+              borderImage: 'linear-gradient(135deg, #ff00ff, #00ffff) 1',
+              background: 'linear-gradient(135deg, rgba(255,0,255,0.05), rgba(0,255,255,0.05))',
+              padding: '2rem',
+              borderRadius: '8px',
+              boxShadow: '0 0 30px rgba(255, 0, 255, 0.2)'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                <h3 style={{
+                  color: '#ff00ff',
+                  fontSize: '1.3rem',
+                  margin: 0,
+                  textShadow: '0 0 10px rgba(255, 0, 255, 0.5)'
+                }}>
+                  📋 ALL USERS ({allUsers.length})
+                </h3>
+                <button
+                  onClick={fetchAllUsers}
+                  disabled={userManagementLoading}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    background: 'linear-gradient(135deg, rgba(0,255,255,0.1), rgba(0,255,0,0.1))',
+                    border: '2px solid #00ffff',
+                    color: '#00ffff',
+                    cursor: 'pointer',
+                    fontFamily: 'Courier New, monospace',
+                    fontSize: '0.9rem',
+                    borderRadius: '4px',
+                    boxShadow: '0 0 10px rgba(0, 255, 255, 0.3)'
+                  }}
+                >
+                  🔄 REFRESH
+                </button>
+              </div>
+
+              {userManagementLoading ? (
+                <div style={{ color: '#ffff00', textAlign: 'center', padding: '2rem' }}>
+                  ⚡ Loading users...
+                </div>
+              ) : allUsers.length === 0 ? (
+                <div style={{ color: '#ff6600', textAlign: 'center', padding: '2rem' }}>
+                  No users found
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gap: '1rem' }}>
+                  {allUsers.map((user) => (
+                    <div
+                      key={user.id}
+                      style={{
+                        background: 'linear-gradient(135deg, rgba(0,0,0,0.9), rgba(10,10,30,0.9))',
+                        border: '1px solid rgba(0, 255, 255, 0.3)',
+                        borderRadius: '4px',
+                        padding: '1rem',
+                        display: 'grid',
+                        gridTemplateColumns: '1fr auto',
+                        gap: '1rem',
+                        alignItems: 'center',
+                        boxShadow: '0 0 10px rgba(0, 255, 255, 0.1)'
+                      }}
+                    >
+                      <div>
+                        <div style={{ color: '#00ffff', fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
+                          {user.name}
+                        </div>
+                        <div style={{ color: '#00ff00', fontSize: '0.9rem', marginBottom: '0.3rem' }}>
+                          📧 {user.email}
+                        </div>
+                        <div style={{ color: '#ffff00', fontSize: '0.85rem', marginBottom: '0.3rem' }}>
+                          👤 Username: {user.username}
+                        </div>
+                        <div style={{ display: 'flex', gap: '1rem', fontSize: '0.85rem' }}>
+                          <span style={{ color: user.role === 'ADMIN' ? '#ff00ff' : user.role === 'USER' ? '#00ffff' : '#ff9900' }}>
+                            🔐 {user.role}
+                          </span>
+                          <span style={{ color: '#888' }}>
+                            🕒 {new Date(user.createdAt).toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => deleteUser(user.id)}
+                        style={{
+                          padding: '0.5rem 1rem',
+                          background: 'linear-gradient(135deg, rgba(255,0,0,0.1), rgba(255,102,0,0.1))',
+                          border: '2px solid #ff0000',
+                          color: '#ff0000',
+                          cursor: 'pointer',
+                          fontFamily: 'Courier New, monospace',
+                          fontSize: '0.9rem',
+                          borderRadius: '4px',
+                          boxShadow: '0 0 10px rgba(255, 0, 0, 0.3)',
+                          transition: 'all 0.3s ease'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.boxShadow = '0 0 20px rgba(255, 0, 0, 0.6)'
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.boxShadow = '0 0 10px rgba(255, 0, 0, 0.3)'
+                        }}
+                      >
+                        🗑️ DELETE
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -1103,6 +2036,20 @@ END OF LOG - ${isClient ? new Date().toLocaleTimeString() : '16:24:10'}`}
         @keyframes blink {
           0%, 50% { opacity: 1; }
           51%, 100% { opacity: 0; }
+        }
+
+        @keyframes pulse {
+          0%, 100% { 
+            opacity: 1;
+          }
+          50% { 
+            opacity: 0.8;
+          }
+        }
+
+        @keyframes scanline {
+          0% { transform: translateY(-100%); }
+          100% { transform: translateY(100%); }
         }
 
         @keyframes glitch {
@@ -1115,29 +2062,164 @@ END OF LOG - ${isClient ? new Date().toLocaleTimeString() : '16:24:10'}`}
         }
 
         @keyframes fall {
-          to { transform: translateY(100vh); }
+          to { transform: translateY(110vh); opacity: 0; }
+        }
+
+        @keyframes glow {
+          0%, 100% { 
+            box-shadow: 0 0 5px rgba(0, 255, 0, 0.3);
+          }
+          50% { 
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+          }
+        }
+
+        @keyframes borderGlow {
+          0%, 100% { 
+            opacity: 0.8;
+          }
+          50% { 
+            opacity: 1;
+          }
+        }
+
+        @keyframes float {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-5px); }
+        }
+
+        @keyframes shimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+
+        @keyframes neonPulse {
+          0%, 100% { 
+            opacity: 0.8;
+          }
+          50% { 
+            opacity: 1;
+          }
+        }
+
+        @keyframes holographic {
+          0% { 
+            background-position: 0% 50%;
+          }
+          100% { 
+            background-position: 100% 50%;
+          }
+        }
+
+        @keyframes dataStream {
+          0% { transform: translateX(-100%); opacity: 0; }
+          50% { opacity: 1; }
+          100% { transform: translateX(100%); opacity: 0; }
+        }
+
+        @keyframes flicker {
+          0%, 100% { opacity: 1; }
+          41%, 43% { opacity: 0.7; }
+          44% { opacity: 1; }
+          61% { opacity: 0.8; }
+          62% { opacity: 1; }
+        }
+
+        @keyframes rotate3d {
+          0% { transform: perspective(1000px) rotateY(0deg); }
+          100% { transform: perspective(1000px) rotateY(360deg); }
+        }
+
+        @keyframes slideGlow {
+          0% { left: -100%; }
+          100% { left: 100%; }
+        }
+
+        @keyframes electricArc {
+          0%, 100% { 
+            box-shadow: 
+              0 0 10px rgba(0, 255, 255, 0.5),
+              0 0 20px rgba(0, 255, 255, 0.3),
+              0 0 30px rgba(255, 0, 255, 0.2);
+          }
+          25% { 
+            box-shadow: 
+              0 0 20px rgba(255, 0, 255, 0.6),
+              0 0 40px rgba(255, 0, 255, 0.4),
+              0 0 60px rgba(0, 255, 255, 0.3);
+          }
+          50% { 
+            box-shadow: 
+              0 0 30px rgba(0, 255, 0, 0.7),
+              0 0 50px rgba(0, 255, 0, 0.5),
+              0 0 70px rgba(0, 255, 255, 0.4);
+          }
+          75% { 
+            box-shadow: 
+              0 0 20px rgba(0, 255, 255, 0.6),
+              0 0 40px rgba(0, 255, 255, 0.4),
+              0 0 60px rgba(255, 0, 255, 0.3);
+          }
+        }
+
+        @keyframes matrixRain {
+          0% { transform: translateY(-100%); opacity: 0; }
+          10% { opacity: 1; }
+          90% { opacity: 1; }
+          100% { transform: translateY(100vh); opacity: 0; }
         }
 
         input::placeholder {
-          color: rgba(0, 255, 0, 0.5);
+          color: rgba(0, 255, 255, 0.6);
         }
 
-        /* Scrollbar styling */
+        input:focus {
+          outline: none;
+          box-shadow: 0 0 15px rgba(0, 255, 255, 0.5), inset 0 0 10px rgba(0, 255, 255, 0.1);
+          border-color: #00ffff;
+        }
+
+        button:active {
+          transform: scale(0.98);
+        }
+
+        /* Custom Scrollbar - Premium Style */
         ::-webkit-scrollbar {
-          width: 8px;
+          width: 12px;
+          height: 12px;
         }
 
         ::-webkit-scrollbar-track {
-          background: #000000;
+          background: linear-gradient(90deg, rgba(0, 0, 0, 0.9), rgba(10, 10, 30, 0.9));
+          border-left: 1px solid rgba(0, 255, 255, 0.2);
         }
 
         ::-webkit-scrollbar-thumb {
-          background: #00ff00;
-          border-radius: 4px;
+          background: linear-gradient(180deg, #00ff00, #00ffff);
+          border-radius: 6px;
+          border: 2px solid rgba(0, 0, 0, 0.5);
+          box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
         }
 
         ::-webkit-scrollbar-thumb:hover {
-          background: #00cc00;
+          background: linear-gradient(180deg, #00ffff, #00ff00);
+          box-shadow: 0 0 20px rgba(0, 255, 255, 0.8);
+        }
+
+        ::-webkit-scrollbar-corner {
+          background: #000000;
+        }
+
+        /* Selection Style */
+        ::selection {
+          background: rgba(0, 255, 255, 0.3);
+          color: #00ffff;
+          text-shadow: 0 0 10px #00ffff;
+        }
+
+        ::-moz-selection {
+          background: rgba(0, 255, 255, 0.3);
+          color: #00ffff;
         }
       `}</style>
     </div>

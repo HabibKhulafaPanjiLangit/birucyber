@@ -1,27 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { PrismaClient } from '@prisma/client'
 
-// Simulated user roles and permissions
+const prisma = new PrismaClient()
+
+// Role-based permissions mapping
 const userRoles = {
-  guest: {
+  GUEST: {
     permissions: ['read:public'],
     resources: ['/public', '/home']
   },
-  user: {
+  USER: {
     permissions: ['read:public', 'read:profile', 'update:profile'],
     resources: ['/public', '/home', '/profile', '/dashboard']
   },
-  admin: {
+  ADMIN: {
     permissions: ['read:public', 'read:profile', 'update:profile', 'read:admin', 'write:admin', 'delete:admin', 'read:users'],
     resources: ['/public', '/home', '/profile', '/dashboard', '/admin', '/api/users', '/api/reports']
   }
 }
-
-// Simulated users
-const users = [
-  { id: 1, username: 'admin', role: 'admin', token: 'admin-token-123' },
-  { id: 2, username: 'user1', role: 'user', token: 'user-token-456' },
-  { id: 3, username: 'guest', role: 'guest', token: 'guest-token-789' }
-]
 
 export async function POST(request: NextRequest) {
   try {
@@ -34,42 +30,89 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Safe mode - proper access control
+    // Safe mode - proper access control using real database
     if (testMode === 'safe') {
-      const user = userToken ? users.find(u => u.token === userToken) || { id: 0, username: 'anonymous', role: 'guest', token: '' } : { id: 0, username: 'anonymous', role: 'guest', token: '' }
-      const userRole = userRoles[user.role as keyof typeof userRoles]
-      
-      const hasAccess = userRole.resources.includes(resource) || resource.startsWith('/public')
+      try {
+        // Find user by email or username (userToken can be email/username)
+        const user = userToken ? await prisma.user.findFirst({
+          where: {
+            OR: [
+              { email: userToken },
+              { username: userToken }
+            ]
+          }
+        }) : null
+        
+        const userRole = user ? userRoles[user.role] : userRoles['GUEST']
+        const hasAccess = userRole.resources.includes(resource) || resource.startsWith('/public')
 
-      return NextResponse.json({
-        success: hasAccess,
-        message: hasAccess ? 'Access granted (safe mode)' : 'Access denied (safe mode)',
-        user: {
-          id: user.id,
-          username: user.username,
-          role: user.role
-        },
-        requestedResource: resource,
-        allowedResources: userRole.resources,
-        permissions: userRole.permissions,
-        accessControl: 'Properly implemented',
-        security: {
-          validated: true,
-          bypassProtected: true,
-          authorizationChecked: true
+        const result = {
+          success: hasAccess,
+          message: hasAccess ? '✅ Access granted (safe mode)' : '❌ Access denied (safe mode)',
+          user: user ? {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            name: user.name,
+            role: user.role
+          } : {
+            username: 'anonymous',
+            role: 'GUEST'
+          },
+          requestedResource: resource,
+          allowedResources: userRole.resources,
+          permissions: userRole.permissions,
+          accessControl: 'Properly implemented',
+          security: {
+            validated: true,
+            bypassProtected: true,
+            authorizationChecked: true
+          }
         }
-      })
+
+        // Save test result to database
+        try {
+          await prisma.accessControlTest.create({
+            data: {
+              resource: resource,
+              userToken: userToken || 'anonymous',
+              testMode: 'safe',
+              accessGranted: hasAccess,
+              bypassAttempted: false,
+              bypassSuccessful: false,
+              vulnerabilityType: null,
+              userRole: user ? user.role : 'GUEST',
+              ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
+              userAgent: request.headers.get('user-agent') || 'unknown',
+              result: JSON.stringify(result)
+            }
+          })
+        } catch (dbError) {
+          console.error('Failed to save access control test to database:', dbError)
+        }
+
+        return NextResponse.json(result)
+      } catch (error: any) {
+        return NextResponse.json({
+          success: false,
+          message: 'Database error',
+          error: error.message
+        }, { status: 500 })
+      }
     }
 
     // Vulnerable mode - broken access control
     if (testMode === 'vulnerable') {
-      const user = userToken ? users.find(u => u.token === userToken) : { id: 0, username: 'anonymous', role: 'guest', token: '' }
+      const user = userToken ? await prisma.user.findFirst({
+        where: {
+          OR: [
+            { email: userToken },
+            { username: userToken }
+          ]
+        }
+      }) : null
       
-      if (!user) {
-        return NextResponse.json({ error: 'Invalid user token' }, { status: 400 })
-      }
-      
-      const userRole = userRoles[user.role as keyof typeof userRoles]
+      const userRole = user ? userRoles[user.role] : userRoles['GUEST']
       
       // Simulate broken access control vulnerabilities
       let hasAccess = false
@@ -96,7 +139,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Simulate IDOR (Insecure Direct Object Reference)
-        if (resource.includes('/api/users/') && user.role !== 'admin') {
+        if (resource.includes('/api/users/') && user && user.role !== 'ADMIN') {
           hasAccess = true
           vulnerabilityType = 'IDOR (Insecure Direct Object Reference)'
           bypassMethod = 'Direct API endpoint access'
@@ -108,7 +151,7 @@ export async function POST(request: NextRequest) {
         hasAccess = userRole.resources.includes(resource) || resource.startsWith('/public')
       }
 
-      if (hasAccess && (bypassAttempt || (user.role === 'guest' && resource.includes('/admin')))) {
+      if (hasAccess && (bypassAttempt || (user && user.role === 'GUEST' && resource.includes('/admin')))) {
         // Log to dashboard
         try {
           await fetch(`${request.nextUrl.origin}/api/dashboard`, {
@@ -126,16 +169,21 @@ export async function POST(request: NextRequest) {
           console.error('Failed to log to dashboard:', e)
         }
         
-        return NextResponse.json({
+        const result = {
           success: true,
           message: '🚨 ACCESS CONTROL BYPASSED! Unauthorized access granted!',
           vulnerability: vulnerabilityType || 'Broken Access Control',
           bypassMethod: bypassMethod || 'Insufficient authorization checks',
           impact: 'Unauthorized access to protected resources',
-          user: {
+          user: user ? {
             id: user.id,
             username: user.username,
+            email: user.email,
+            name: user.name,
             role: user.role
+          } : {
+            username: 'anonymous',
+            role: 'GUEST'
           },
           requestedResource: resource,
           shouldHaveAccess: userRole.resources.includes(resource),
@@ -153,16 +201,44 @@ export async function POST(request: NextRequest) {
             'Implement principle of least privilege',
             'Regular security testing and code review'
           ]
-        })
+        }
+
+        // Save bypass test result to database
+        try {
+          await prisma.accessControlTest.create({
+            data: {
+              resource: resource,
+              userToken: userToken || 'anonymous',
+              testMode: 'vulnerable',
+              accessGranted: true,
+              bypassAttempted: bypassAttempt,
+              bypassSuccessful: true,
+              vulnerabilityType: vulnerabilityType || 'Broken Access Control',
+              userRole: user ? user.role : 'GUEST',
+              ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
+              userAgent: request.headers.get('user-agent') || 'unknown',
+              result: JSON.stringify(result)
+            }
+          })
+        } catch (dbError) {
+          console.error('Failed to save access control test to database:', dbError)
+        }
+
+        return NextResponse.json(result)
       }
 
-      return NextResponse.json({
+      const result = {
         success: hasAccess,
         message: hasAccess ? 'Access granted' : 'Access denied',
-        user: {
+        user: user ? {
           id: user.id,
           username: user.username,
+          email: user.email,
+          name: user.name,
           role: user.role
+        } : {
+          username: 'anonymous',
+          role: 'GUEST'
         },
         requestedResource: resource,
         accessControl: 'Vulnerable mode',
@@ -171,7 +247,30 @@ export async function POST(request: NextRequest) {
           bypassProtected: false,
           authorizationChecked: false
         }
-      })
+      }
+
+      // Save normal vulnerable mode test result to database
+      try {
+        await prisma.accessControlTest.create({
+          data: {
+            resource: resource,
+            userToken: userToken || 'anonymous',
+            testMode: 'vulnerable',
+            accessGranted: hasAccess,
+            bypassAttempted: bypassAttempt,
+            bypassSuccessful: false,
+            vulnerabilityType: null,
+            userRole: user ? user.role : 'GUEST',
+            ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
+            userAgent: request.headers.get('user-agent') || 'unknown',
+            result: JSON.stringify(result)
+          }
+        })
+      } catch (dbError) {
+        console.error('Failed to save access control test to database:', dbError)
+      }
+
+      return NextResponse.json(result)
     }
 
     return NextResponse.json(
@@ -189,9 +288,13 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET() {
+  const allUsers = await prisma.user.findMany({
+    select: { id: true, username: true, email: true, role: true }
+  })
+  
   return NextResponse.json({
     message: 'Access Control Testing API',
-    users: users.map(u => ({ id: u.id, username: u.username, role: u.role })),
+    users: allUsers,
     roles: userRoles,
     endpoints: {
       'POST /api/access-control': {
