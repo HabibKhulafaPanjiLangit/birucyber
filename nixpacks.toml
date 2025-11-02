@@ -1,15 +1,12 @@
 # Railway Deployment Configuration
 [phases.setup]
-nixPkgs = ["nodejs_20"]
+nixPkgs = ["nodejs_20", "openssl"]
 
 [phases.install]
 cmds = ["npm install --legacy-peer-deps"]
 
 [phases.build]
-cmds = [
-  "npx prisma generate",
-  "npm run build"
-]
+cmds = ["npm run build"]
 
 [start]
-cmd = "npx tsx server.ts"
+cmd = "npm start"
