@@ -169,27 +169,37 @@ model RateLimitingTest {
 
 model WebsiteScan {
   id                String   @id @default(cuid())
-  targetUrl         String
-  scanType          String   // full, quick, specific
-  status            String   // pending, scanning, completed, failed
-  vulnerabilities   String?  // JSON array of found vulnerabilities
-  securityScore     Int?     // 0-100
+  targetUrl         String   @db.VarChar(2048)
+  scanType          String   @db.VarChar(20) // full, quick, specific
+  status            String   @db.VarChar(20) // pending, scanning, completed, failed
+  vulnerabilities   String?  @db.Text // JSON array of found vulnerabilities
+  securityScore     Int?     @db.SmallInt // 0-100
   sqlInjection      Boolean  @default(false)
   xssVulnerable     Boolean  @default(false)
   brokenAccessControl Boolean @default(false)
-  securityHeaders   String?  // JSON object
-  sslInfo           String?  // JSON object
-  technologies      String?  // JSON array
-  openPorts         String?  // JSON array
-  scanDuration      Int?     // in seconds
-  totalChecks       Int?
-  passedChecks      Int?
-  failedChecks      Int?
-  recommendations   String?  // JSON array
-  severity          String?  // low, medium, high, critical
-  scannerIp         String?
-  userAgent         String?
-  errorMessage      String?
+  securityHeaders   String?  @db.Text // JSON object
+  sslInfo           String?  @db.Text // JSON object
+  technologies      String?  @db.Text // JSON array
+  subdomains        String?  @db.Text // JSON array - NEW
+  exposedFiles      String?  @db.Text // JSON array - NEW
+  openPorts         String?  @db.Text // JSON array
+  scanDuration      Int?     @db.SmallInt // in seconds
+  totalChecks       Int?     @db.SmallInt
+  passedChecks      Int?     @db.SmallInt
+  failedChecks      Int?     @db.SmallInt
+  recommendations   String?  @db.Text // JSON array
+  severity          String?  @db.VarChar(20) // low, medium, high, critical
+  scannerIp         String?  @db.VarChar(45)
+  userAgent         String?  @db.VarChar(255)
+  errorMessage      String?  @db.Text
   createdAt         DateTime @default(now())
   completedAt       DateTime?
+  updatedAt         DateTime @updatedAt
+  
+  // Performance indexes
+  @@index([targetUrl])
+  @@index([status])
+  @@index([createdAt])
+  @@index([securityScore])
+  @@index([severity])
 }
