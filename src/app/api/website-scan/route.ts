@@ -21,19 +21,85 @@ const SECURITY_HEADERS = [
   'Permissions-Policy'
 ]
 
-// SQL Injection test payloads
+// Advanced SQL Injection test payloads
 const SQL_PAYLOADS = [
   "' OR '1'='1",
   "admin'--",
   "' OR 1=1--",
-  "1' UNION SELECT NULL--"
+  "1' UNION SELECT NULL--",
+  "1' AND 1=0 UNION ALL SELECT 'admin', '81dc9bdb52d04dc20036dbd8313ed055'",
+  "admin' or '1'='1'/*",
+  "' or 1=1--",
+  "' union select null, null, null--",
+  "1' WAITFOR DELAY '0:0:5'--",
+  "1' AND SLEEP(5)--",
+  "'; DROP TABLE users--",
+  "' OR EXISTS(SELECT * FROM users)--"
 ]
 
-// XSS test payloads
+// Advanced XSS test payloads
 const XSS_PAYLOADS = [
   "<script>alert('XSS')</script>",
   "<img src=x onerror=alert(1)>",
-  "<svg/onload=alert(1)>"
+  "<svg/onload=alert(1)>",
+  "<iframe src=javascript:alert(1)>",
+  "<body onload=alert(1)>",
+  "<input onfocus=alert(1) autofocus>",
+  "<marquee onstart=alert(1)>",
+  "<details open ontoggle=alert(1)>",
+  "javascript:alert(1)",
+  "<script>alert(String.fromCharCode(88,83,83))</script>",
+  "\"><script>alert(1)</script>",
+  "';alert(String.fromCharCode(88,83,83))//",
+  "<img src=x:alert(1) onerror=eval(src)>",
+  "<svg><script>alert(1)</script></svg>"
+]
+
+// Path Traversal payloads
+const PATH_TRAVERSAL_PAYLOADS = [
+  "../../../etc/passwd",
+  "..\\..\\..\\windows\\system32\\config\\sam",
+  "....//....//....//etc/passwd",
+  "..%2F..%2F..%2Fetc%2Fpasswd",
+  "..%5c..%5c..%5cwindows%5csystem32%5cconfig%5csam"
+]
+
+// Command Injection payloads
+const COMMAND_INJECTION_PAYLOADS = [
+  "; ls -la",
+  "| whoami",
+  "& dir",
+  "; cat /etc/passwd",
+  "| cat /etc/passwd",
+  "`whoami`",
+  "$(whoami)",
+  "; ping -c 10 127.0.0.1"
+]
+
+// Common vulnerable files/endpoints
+const VULNERABLE_FILES = [
+  ".git/config",
+  ".env",
+  ".env.local",
+  ".env.production",
+  "config.php",
+  "configuration.php",
+  "wp-config.php",
+  "database.yml",
+  ".htaccess",
+  "phpinfo.php",
+  "info.php",
+  "test.php",
+  "backup.sql",
+  "dump.sql",
+  "server-status",
+  "server-info",
+  ".DS_Store",
+  "web.config",
+  "composer.json",
+  "package.json",
+  ".npmrc",
+  ".dockerenv"
 ]
 
 export async function POST(request: NextRequest) {
@@ -113,6 +179,104 @@ export async function POST(request: NextRequest) {
 // Store scan results in memory when database is not available
 const scanResults = new Map<string, any>()
 
+// Advanced technology detection
+function detectTechnologies(html: string, headers: any): string[] {
+  const technologies: string[] = []
+  const htmlLower = html.toLowerCase()
+  
+  // Server detection
+  if (headers.server) technologies.push(`Server: ${headers.server}`)
+  if (headers['x-powered-by']) technologies.push(`Powered-By: ${headers['x-powered-by']}`)
+  
+  // Framework detection
+  if (htmlLower.includes('wp-content') || htmlLower.includes('wordpress')) technologies.push('WordPress')
+  if (htmlLower.includes('drupal')) technologies.push('Drupal')
+  if (htmlLower.includes('joomla')) technologies.push('Joomla')
+  if (htmlLower.includes('laravel')) technologies.push('Laravel')
+  if (htmlLower.includes('next.js') || htmlLower.includes('_next/')) technologies.push('Next.js')
+  if (htmlLower.includes('react')) technologies.push('React')
+  if (htmlLower.includes('vue.js') || htmlLower.includes('vue')) technologies.push('Vue.js')
+  if (htmlLower.includes('angular')) technologies.push('Angular')
+  if (htmlLower.includes('django')) technologies.push('Django')
+  if (htmlLower.includes('flask')) technologies.push('Flask')
+  if (htmlLower.includes('rails') || htmlLower.includes('ruby')) technologies.push('Ruby on Rails')
+  
+  // CMS detection
+  if (htmlLower.includes('shopify')) technologies.push('Shopify')
+  if (htmlLower.includes('wix.com')) technologies.push('Wix')
+  if (htmlLower.includes('squarespace')) technologies.push('Squarespace')
+  if (htmlLower.includes('magento')) technologies.push('Magento')
+  if (htmlLower.includes('prestashop')) technologies.push('PrestaShop')
+  
+  // JavaScript libraries
+  if (htmlLower.includes('jquery')) technologies.push('jQuery')
+  if (htmlLower.includes('bootstrap')) technologies.push('Bootstrap')
+  if (htmlLower.includes('tailwind')) technologies.push('Tailwind CSS')
+  if (htmlLower.includes('material-ui')) technologies.push('Material-UI')
+  
+  // Analytics & Tracking
+  if (htmlLower.includes('google-analytics') || htmlLower.includes('gtag')) technologies.push('Google Analytics')
+  if (htmlLower.includes('facebook.com/tr')) technologies.push('Facebook Pixel')
+  if (htmlLower.includes('hotjar')) technologies.push('Hotjar')
+  
+  // CDN detection
+  if (htmlLower.includes('cloudflare')) technologies.push('Cloudflare CDN')
+  if (htmlLower.includes('akamai')) technologies.push('Akamai CDN')
+  if (htmlLower.includes('fastly')) technologies.push('Fastly CDN')
+  
+  return [...new Set(technologies)] // Remove duplicates
+}
+
+// Check for exposed sensitive files
+async function checkSensitiveFiles(baseUrl: URL): Promise<any[]> {
+  const findings: any[] = []
+  
+  for (const file of VULNERABLE_FILES.slice(0, 10)) { // Check first 10 to save time
+    try {
+      const testUrl = new URL(file, baseUrl.toString())
+      const response = await fetch(testUrl.toString(), {
+        method: 'HEAD',
+        signal: AbortSignal.timeout(3000)
+      })
+      
+      if (response.status === 200) {
+        findings.push({
+          type: 'Exposed Sensitive File',
+          severity: 'high',
+          description: `Sensitive file accessible: ${file}`,
+          recommendation: `Restrict access to ${file} or remove it from public directory`,
+          url: testUrl.toString()
+        })
+      }
+    } catch {
+      // File not accessible, which is good
+    }
+  }
+  
+  return findings
+}
+
+// Advanced subdomain detection
+async function findSubdomains(domain: string): Promise<string[]> {
+  const subdomains = ['www', 'api', 'admin', 'dev', 'staging', 'test', 'mail', 'ftp', 'blog', 'shop']
+  const found: string[] = []
+  
+  for (const sub of subdomains.slice(0, 5)) { // Check first 5 to save time
+    try {
+      const testUrl = `https://${sub}.${domain}`
+      await fetch(testUrl, {
+        method: 'HEAD',
+        signal: AbortSignal.timeout(2000)
+      })
+      found.push(`${sub}.${domain}`)
+    } catch {
+      // Subdomain doesn't exist or not accessible
+    }
+  }
+  
+  return found
+}
+
 async function performScanNoDB(scanId: string, url: URL, scanType: string) {
   const startTime = Date.now()
   const results: any = {
@@ -168,28 +332,71 @@ async function performScanNoDB(scanId: string, url: URL, scanType: string) {
       }
       results.securityHeaders = headers
 
-      // 3. Detect Technologies
-      const contentType = response.headers.get('content-type')
-      const server = response.headers.get('server')
-      const poweredBy = response.headers.get('x-powered-by')
-      
-      if (server) results.technologies.push(`Server: ${server}`)
-      if (poweredBy) results.technologies.push(`Powered By: ${poweredBy}`)
-      if (contentType) results.technologies.push(`Content-Type: ${contentType}`)
-
-      // 4. Get response body
+      // 3. Advanced Technology Detection
       const html = await response.text()
+      const detectedTech = detectTechnologies(html, {
+        server: response.headers.get('server'),
+        'x-powered-by': response.headers.get('x-powered-by'),
+        'content-type': response.headers.get('content-type')
+      })
+      results.technologies = detectedTech
 
-      // Check for CSRF
-      if (html.toLowerCase().includes('<input') && !html.toLowerCase().includes('csrf')) {
-        results.checks.total++
+      // 4. Check for CSRF
+      results.checks.total++
+      if (html.toLowerCase().includes('<form') && !html.toLowerCase().includes('csrf')) {
         results.checks.failed++
         results.vulnerabilities.push({
           type: 'Potential CSRF Vulnerability',
           severity: 'high',
           description: 'Forms detected without visible CSRF protection',
-          recommendation: 'Implement CSRF tokens for all forms'
+          recommendation: 'Implement CSRF tokens for all state-changing forms'
         })
+      } else if (html.toLowerCase().includes('<form')) {
+        results.checks.passed++
+      }
+
+      // 5. Check for Clickjacking Protection
+      results.checks.total++
+      const xFrameOptions = response.headers.get('x-frame-options')
+      const csp = response.headers.get('content-security-policy')
+      if (!xFrameOptions && !csp?.includes('frame-ancestors')) {
+        results.checks.failed++
+        results.vulnerabilities.push({
+          type: 'Clickjacking Vulnerability',
+          severity: 'medium',
+          description: 'No clickjacking protection detected (missing X-Frame-Options and frame-ancestors CSP)',
+          recommendation: 'Add X-Frame-Options: DENY or frame-ancestors directive in CSP'
+        })
+      } else {
+        results.checks.passed++
+      }
+
+      // 6. Check for Mixed Content
+      results.checks.total++
+      if (url.protocol === 'https:' && (html.includes('http://') || html.includes("src='http://") || html.includes('src="http://'))) {
+        results.checks.failed++
+        results.vulnerabilities.push({
+          type: 'Mixed Content',
+          severity: 'medium',
+          description: 'HTTPS page loading HTTP resources (insecure)',
+          recommendation: 'Ensure all resources are loaded over HTTPS'
+        })
+      } else if (url.protocol === 'https:') {
+        results.checks.passed++
+      }
+
+      // 7. Check for Autocomplete on sensitive fields
+      results.checks.total++
+      if (html.toLowerCase().includes('type="password"') && !html.toLowerCase().includes('autocomplete="off"')) {
+        results.checks.failed++
+        results.vulnerabilities.push({
+          type: 'Password Autocomplete Enabled',
+          severity: 'low',
+          description: 'Password fields allow autocomplete (potential security risk)',
+          recommendation: 'Add autocomplete="off" to sensitive input fields'
+        })
+      } else if (html.toLowerCase().includes('type="password"')) {
+        results.checks.passed++
       }
 
       // Check for SQL errors
