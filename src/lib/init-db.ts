@@ -24,29 +24,26 @@ export async function initializeDatabase() {
       console.log('✅ Database tables exist')
       return true
     } catch (error: any) {
-      // Table doesn't exist - need to run migration
+      // Table doesn't exist - use db push to create it
       if (error.code === 'P2021' || error.message?.includes('does not exist')) {
-        console.log('⚠️  Tables do not exist - attempting to create...')
+        console.log('⚠️  Tables do not exist - creating with db push...')
         
         try {
-          // Try to run migration
-          console.log('🔄 Running database migration...')
-          execSync('npx prisma migrate deploy', { stdio: 'inherit' })
-          console.log('✅ Migration completed successfully')
-          return true
-        } catch (migrationError) {
-          console.error('❌ Migration failed:', migrationError)
+          console.log('🔄 Running prisma db push...')
+          execSync('npx prisma db push --accept-data-loss --skip-generate', { 
+            stdio: 'inherit',
+            env: process.env 
+          })
+          console.log('✅ Database schema created successfully')
           
-          // Fallback: try db push
-          try {
-            console.log('🔄 Trying prisma db push as fallback...')
-            execSync('npx prisma db push --skip-generate', { stdio: 'inherit' })
-            console.log('✅ Database schema pushed successfully')
-            return true
-          } catch (pushError) {
-            console.error('❌ DB push also failed:', pushError)
-            return false
-          }
+          // Verify tables were created
+          await prisma.websiteScan.findFirst({ take: 1 })
+          console.log('✅ Tables verified')
+          return true
+        } catch (pushError: any) {
+          console.error('❌ DB push failed:', pushError.message)
+          console.error('📋 Please check DATABASE_URL is correct')
+          return false
         }
       }
       
