@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { prisma, isDatabaseAvailable } from '@/lib/db'
 
 // Security Headers to check
 const SECURITY_HEADERS = [
@@ -117,6 +117,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Invalid URL format. Use http:// or https://' },
         { status: 400 }
+      )
+    }
+
+    // Check if database is available
+    if (!isDatabaseAvailable() || !prisma) {
+      return NextResponse.json(
+        { 
+          error: 'Database not configured',
+          message: 'DATABASE_URL environment variable is not set. Please setup PostgreSQL database in Railway.',
+          instructions: 'Follow the guide: QUICK-START-DATABASE.md',
+          setupSteps: [
+            '1. Railway Dashboard → Add PostgreSQL',
+            '2. Copy DATABASE_URL from PostgreSQL service',
+            '3. Add DATABASE_URL to BiruCyber service variables',
+            '4. Wait for auto-redeploy (~3 minutes)'
+          ]
+        },
+        { status: 503 }
       )
     }
 
@@ -251,257 +269,7 @@ async function findSubdomains(domain: string): Promise<string[]> {
   return found
 }
 
-async function performScanNoDB(scanId: string, url: URL, scanType: string) {
-  const startTime = Date.now()
-  const results: any = {
-    vulnerabilities: [],
-    securityHeaders: {},
-    sslInfo: {},
-    technologies: [],
-    openPorts: [],
-    checks: {
-      total: 0,
-      passed: 0,
-      failed: 0
-    }
-  }
-
-  try {
-    // 1. Check if website is accessible
-    results.checks.total++
-    try {
-      const response = await fetch(url.toString(), {
-        method: 'GET',
-        headers: {
-          'User-Agent': 'BiruCyber Security Scanner/1.0'
-        },
-        redirect: 'follow',
-        signal: AbortSignal.timeout(10000)
-      })
-
-      if (response.ok) {
-        results.checks.passed++
-      }
-
-      // 2. Check Security Headers
-      results.checks.total += SECURITY_HEADERS.length
-      const headers: any = {}
-      
-      for (const header of SECURITY_HEADERS) {
-        const value = response.headers.get(header)
-        headers[header] = value || 'Missing'
-        
-        if (value) {
-          results.checks.passed++
-        } else {
-          results.checks.failed++
-          results.vulnerabilities.push({
-            type: 'Missing Security Header',
-            name: header,
-            severity: 'medium',
-            description: `Security header ${header} is not set`,
-            recommendation: `Add ${header} header to improve security`
-          })
-        }
-      }
-      results.securityHeaders = headers
-
-      // 3. Advanced Technology Detection
-      const html = await response.text()
-      const detectedTech = detectTechnologies(html, {
-        server: response.headers.get('server'),
-        'x-powered-by': response.headers.get('x-powered-by'),
-        'content-type': response.headers.get('content-type')
-      })
-      results.technologies = detectedTech
-
-      // 4. Check for CSRF
-      results.checks.total++
-      if (html.toLowerCase().includes('<form') && !html.toLowerCase().includes('csrf')) {
-        results.checks.failed++
-        results.vulnerabilities.push({
-          type: 'Potential CSRF Vulnerability',
-          severity: 'high',
-          description: 'Forms detected without visible CSRF protection',
-          recommendation: 'Implement CSRF tokens for all state-changing forms'
-        })
-      } else if (html.toLowerCase().includes('<form')) {
-        results.checks.passed++
-      }
-
-      // 5. Check for Clickjacking Protection
-      results.checks.total++
-      const xFrameOptions = response.headers.get('x-frame-options')
-      const csp = response.headers.get('content-security-policy')
-      if (!xFrameOptions && !csp?.includes('frame-ancestors')) {
-        results.checks.failed++
-        results.vulnerabilities.push({
-          type: 'Clickjacking Vulnerability',
-          severity: 'medium',
-          description: 'No clickjacking protection detected (missing X-Frame-Options and frame-ancestors CSP)',
-          recommendation: 'Add X-Frame-Options: DENY or frame-ancestors directive in CSP'
-        })
-      } else {
-        results.checks.passed++
-      }
-
-      // 6. Check for Mixed Content
-      results.checks.total++
-      if (url.protocol === 'https:' && (html.includes('http://') || html.includes("src='http://") || html.includes('src="http://'))) {
-        results.checks.failed++
-        results.vulnerabilities.push({
-          type: 'Mixed Content',
-          severity: 'medium',
-          description: 'HTTPS page loading HTTP resources (insecure)',
-          recommendation: 'Ensure all resources are loaded over HTTPS'
-        })
-      } else if (url.protocol === 'https:') {
-        results.checks.passed++
-      }
-
-      // 7. Check for Autocomplete on sensitive fields
-      results.checks.total++
-      if (html.toLowerCase().includes('type="password"') && !html.toLowerCase().includes('autocomplete="off"')) {
-        results.checks.failed++
-        results.vulnerabilities.push({
-          type: 'Password Autocomplete Enabled',
-          severity: 'low',
-          description: 'Password fields allow autocomplete (potential security risk)',
-          recommendation: 'Add autocomplete="off" to sensitive input fields'
-        })
-      } else if (html.toLowerCase().includes('type="password"')) {
-        results.checks.passed++
-      }
-
-      // Check for SQL errors
-      const sqlErrors = ['sql syntax', 'mysql_fetch', 'pg_query', 'sqlite_query', 'odbc_exec']
-      results.checks.total++
-      for (const error of sqlErrors) {
-        if (html.toLowerCase().includes(error)) {
-          results.checks.failed++
-          results.vulnerabilities.push({
-            type: 'SQL Injection - Error Disclosure',
-            severity: 'critical',
-            description: 'SQL error messages exposed in response',
-            recommendation: 'Disable detailed error messages in production'
-          })
-          break
-        }
-      }
-      if (!results.vulnerabilities.some((v: any) => v.type.includes('SQL'))) {
-        results.checks.passed++
-      }
-
-      // Check for sensitive info
-      results.checks.total++
-      const sensitivePatterns = ['password', 'api_key', 'secret', 'token', 'private']
-      let foundSensitive = false
-      for (const pattern of sensitivePatterns) {
-        if (html.toLowerCase().includes(`"${pattern}"`)) {
-          results.checks.failed++
-          foundSensitive = true
-          results.vulnerabilities.push({
-            type: 'Sensitive Information Exposure',
-            severity: 'high',
-            description: `Potential sensitive data found: ${pattern}`,
-            recommendation: 'Remove sensitive information from client-side code'
-          })
-          break
-        }
-      }
-      if (!foundSensitive) results.checks.passed++
-
-    } catch (fetchError: any) {
-      results.checks.failed++
-      results.vulnerabilities.push({
-        type: 'Connection Error',
-        severity: 'critical',
-        description: `Failed to connect to website: ${fetchError.message}`,
-        recommendation: 'Verify website is accessible'
-      })
-    }
-
-    // 5. SSL/TLS Check
-    results.checks.total++
-    if (url.protocol === 'https:') {
-      results.checks.passed++
-      results.sslInfo = {
-        enabled: true,
-        protocol: 'HTTPS',
-        status: 'Secure connection established'
-      }
-    } else {
-      results.checks.failed++
-      results.sslInfo = {
-        enabled: false,
-        protocol: 'HTTP',
-        status: 'Insecure connection'
-      }
-      results.vulnerabilities.push({
-        type: 'No SSL/TLS Encryption',
-        severity: 'critical',
-        description: 'Website is not using HTTPS',
-        recommendation: 'Enable SSL/TLS certificate and enforce HTTPS'
-      })
-    }
-
-    // Calculate security score
-    const score = results.checks.total > 0 
-      ? Math.round((results.checks.passed / results.checks.total) * 100)
-      : 0
-
-    // Determine severity
-    const criticalCount = results.vulnerabilities.filter((v: any) => v.severity === 'critical').length
-    const highCount = results.vulnerabilities.filter((v: any) => v.severity === 'high').length
-    const mediumCount = results.vulnerabilities.filter((v: any) => v.severity === 'medium').length
-    
-    let overallSeverity = 'low'
-    if (criticalCount > 0) overallSeverity = 'critical'
-    else if (highCount > 0) overallSeverity = 'high'
-    else if (mediumCount > 0) overallSeverity = 'medium'
-
-    // Recommendations
-    const recommendations = [
-      'Enable HTTPS if not already enabled',
-      'Implement all missing security headers',
-      'Use Content Security Policy (CSP)',
-      'Enable HTTP Strict Transport Security (HSTS)',
-      'Regular security audits and penetration testing'
-    ]
-
-    // Store result in memory
-    const duration = Math.round((Date.now() - startTime) / 1000)
-    const scanResult = {
-      id: scanId,
-      targetUrl: url.toString(),
-      status: 'completed',
-      vulnerabilities: results.vulnerabilities,
-      securityScore: score,
-      securityHeaders: results.securityHeaders,
-      sslInfo: results.sslInfo,
-      technologies: results.technologies,
-      scanDuration: duration,
-      totalChecks: results.checks.total,
-      passedChecks: results.checks.passed,
-      failedChecks: results.checks.failed,
-      recommendations: recommendations,
-      severity: overallSeverity,
-      completedAt: new Date().toISOString()
-    }
-
-    scanResults.set(scanId, scanResult)
-
-  } catch (error: any) {
-    console.error('Scan error:', error)
-    scanResults.set(scanId, {
-      id: scanId,
-      targetUrl: url.toString(),
-      status: 'failed',
-      errorMessage: error.message
-    })
-  }
-}
-
+// Main scan function - saves to database
 async function performScan(scanId: string, url: URL, scanType: string) {
   const startTime = Date.now()
   const results: any = {
@@ -762,25 +530,19 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const scanId = searchParams.get('scanId')
 
+    // Check if database is available
+    if (!isDatabaseAvailable() || !prisma) {
+      return NextResponse.json(
+        { 
+          error: 'Database not configured',
+          message: 'DATABASE_URL environment variable is not set.',
+          instructions: 'Follow QUICK-START-DATABASE.md to setup PostgreSQL'
+        },
+        { status: 503 }
+      )
+    }
+
     if (scanId) {
-      // Check memory first (for no-DB scans)
-      if (scanResults.has(scanId)) {
-        const scan = scanResults.get(scanId)
-        return NextResponse.json({
-          success: true,
-          scan: scan,
-          source: 'memory'
-        })
-      }
-
-      // Check database if Prisma is available
-      if (!prisma) {
-        return NextResponse.json(
-          { error: 'Scan not found and database not connected' },
-          { status: 404 }
-        )
-      }
-
       // Get specific scan result from database
       const scan = await prisma.websiteScan.findUnique({
         where: { id: scanId }
@@ -802,20 +564,10 @@ export async function GET(request: NextRequest) {
           sslInfo: scan.sslInfo ? JSON.parse(scan.sslInfo) : {},
           technologies: scan.technologies ? JSON.parse(scan.technologies) : [],
           openPorts: scan.openPorts ? JSON.parse(scan.openPorts) : [],
-          recommendations: scan.recommendations ? JSON.parse(scan.recommendations) : []
-        },
-        source: 'database'
-      })
-    }
-
-    // If no database, return memory scans
-    if (!prisma) {
-      const memoryScans = Array.from(scanResults.values()).slice(0, 50)
-      return NextResponse.json({
-        success: true,
-        scans: memoryScans,
-        source: 'memory',
-        warning: 'Database not connected. Showing recent scans from memory.'
+          recommendations: scan.recommendations ? JSON.parse(scan.recommendations) : [],
+          subdomains: scan.subdomains ? JSON.parse(scan.subdomains) : [],
+          exposedFiles: scan.exposedFiles ? JSON.parse(scan.exposedFiles) : []
+        }
       })
     }
 
