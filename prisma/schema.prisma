@@ -166,3 +166,30 @@ model RateLimitingTest {
   result          String?  // JSON string
   createdAt       DateTime @default(now())
 }
+
+model WebsiteScan {
+  id                String   @id @default(cuid())
+  targetUrl         String
+  scanType          String   // full, quick, specific
+  status            String   // pending, scanning, completed, failed
+  vulnerabilities   String?  // JSON array of found vulnerabilities
+  securityScore     Int?     // 0-100
+  sqlInjection      Boolean  @default(false)
+  xssVulnerable     Boolean  @default(false)
+  brokenAccessControl Boolean @default(false)
+  securityHeaders   String?  // JSON object
+  sslInfo           String?  // JSON object
+  technologies      String?  // JSON array
+  openPorts         String?  // JSON array
+  scanDuration      Int?     // in seconds
+  totalChecks       Int?
+  passedChecks      Int?
+  failedChecks      Int?
+  recommendations   String?  // JSON array
+  severity          String?  // low, medium, high, critical
+  scannerIp         String?
+  userAgent         String?
+  errorMessage      String?
+  createdAt         DateTime @default(now())
+  completedAt       DateTime?
+}

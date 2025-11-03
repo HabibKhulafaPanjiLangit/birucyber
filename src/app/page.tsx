@@ -50,6 +50,14 @@ export default function HackerPortal() {
   const [userManagementLoading, setUserManagementLoading] = useState(false)
   const [allUsers, setAllUsers] = useState<any[]>([])
   
+  // Website Scanner states
+  const [scanTargetUrl, setScanTargetUrl] = useState('')
+  const [scanType, setScanType] = useState('quick')
+  const [scanResult, setScanResult] = useState<any>(null)
+  const [scanLoading, setScanLoading] = useState(false)
+  const [scanHistory, setScanHistory] = useState<any[]>([])
+  const [activeScanId, setActiveScanId] = useState<string | null>(null)
+  
   // Matrix rain state (client-side only)
   const [matrixChars, setMatrixChars] = useState<Array<{left: string, duration: string, delay: string, char: string}>>([])
   const [isClient, setIsClient] = useState(false)
@@ -224,6 +232,97 @@ export default function HackerPortal() {
       console.error('Failed to fetch users:', error)
     } finally {
       setUserManagementLoading(false)
+    }
+  }
+
+  // Website Scanner Functions
+  const startWebsiteScan = async () => {
+    if (!scanTargetUrl) {
+      setScanResult({ error: 'Please enter a target URL' })
+      return
+    }
+
+    setScanLoading(true)
+    setScanResult(null)
+    setActiveScanId(null)
+
+    try {
+      const response = await fetch('/api/website-scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targetUrl: scanTargetUrl,
+          scanType: scanType
+        })
+      })
+      const data = await response.json()
+
+      if (data.success) {
+        setActiveScanId(data.scanId)
+        setScanResult({
+          status: 'scanning',
+          message: data.message,
+          estimatedTime: data.estimatedTime
+        })
+
+        // Poll for results
+        pollScanResult(data.scanId)
+      } else {
+        setScanResult({ error: data.error || 'Failed to start scan' })
+        setScanLoading(false)
+      }
+    } catch (error: any) {
+      setScanResult({ error: 'Failed to start scan: ' + (error?.message || 'Unknown error') })
+      setScanLoading(false)
+    }
+  }
+
+  const pollScanResult = async (scanId: string) => {
+    const maxAttempts = 60 // 2 minutes max
+    let attempts = 0
+
+    const poll = setInterval(async () => {
+      attempts++
+
+      try {
+        const response = await fetch(`/api/website-scan?scanId=${scanId}`)
+        const data = await response.json()
+
+        if (data.success && data.scan) {
+          if (data.scan.status === 'completed') {
+            setScanResult(data.scan)
+            setScanLoading(false)
+            clearInterval(poll)
+            fetchScanHistory() // Refresh history
+          } else if (data.scan.status === 'failed') {
+            setScanResult({
+              error: data.scan.errorMessage || 'Scan failed'
+            })
+            setScanLoading(false)
+            clearInterval(poll)
+          }
+        }
+
+        if (attempts >= maxAttempts) {
+          setScanResult({ error: 'Scan timeout' })
+          setScanLoading(false)
+          clearInterval(poll)
+        }
+      } catch (error) {
+        console.error('Poll error:', error)
+      }
+    }, 2000) // Poll every 2 seconds
+  }
+
+  const fetchScanHistory = async () => {
+    try {
+      const response = await fetch('/api/website-scan')
+      const data = await response.json()
+      if (data.success) {
+        setScanHistory(data.scans || [])
+      }
+    } catch (error) {
+      console.error('Failed to fetch scan history:', error)
     }
   }
 
@@ -1486,9 +1585,291 @@ Type 'help' for available commands.`}
           </div>
         )}
 
-        {/* Scan Tab - Dashboard */}
+        {/* Scan Tab - Website Scanner & Dashboard */}
         {activeTab === 'scan' && (
           <div style={{ padding: '1rem', height: 'calc(100vh - 200px)', overflowY: 'auto' }}>
+            
+            {/* Website Scanner */}
+            <div style={{ border: '2px solid #00ffff', backgroundColor: 'rgba(0,255,255,0.05)', padding: '1.5rem', marginBottom: '2rem' }}>
+              <pre style={{ color: '#00ffff', fontSize: '1.2rem', marginBottom: '1rem' }}>
+{`╔══════════════════════════════════════════════════════════════╗
+║              EXTERNAL WEBSITE VULNERABILITY SCANNER            ║
+║            Scan ANY Website for Security Issues                ║
+╚══════════════════════════════════════════════════════════════╝`}
+              </pre>
+              
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ color: '#00ffff', fontSize: '0.9rem', display: 'block', marginBottom: '0.5rem' }}>
+                  🌐 Target Website URL:
+                </label>
+                <input
+                  type="text"
+                  value={scanTargetUrl}
+                  onChange={(e) => setScanTargetUrl(e.target.value)}
+                  placeholder="https://example.com"
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    backgroundColor: 'rgba(0,0,0,0.7)',
+                    border: '2px solid #00ffff',
+                    color: '#00ffff',
+                    fontFamily: 'Courier New, monospace',
+                    fontSize: '1rem',
+                    borderRadius: '4px'
+                  }}
+                />
+                <div style={{ color: '#ffff00', fontSize: '0.75rem', marginTop: '0.5rem' }}>
+                  💡 Enter any website URL (e.g., https://google.com, http://example.com)
+                </div>
+              </div>
+              
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ color: '#00ffff', fontSize: '0.9rem', display: 'block', marginBottom: '0.5rem' }}>
+                  ⚙️ Scan Type:
+                </label>
+                <select
+                  value={scanType}
+                  onChange={(e) => setScanType(e.target.value)}
+                  style={{
+                    padding: '0.75rem',
+                    backgroundColor: 'rgba(0,0,0,0.7)',
+                    border: '2px solid #00ffff',
+                    color: '#00ffff',
+                    fontFamily: 'Courier New, monospace',
+                    fontSize: '0.9rem',
+                    borderRadius: '4px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value="quick">Quick Scan (30-60s) - Basic security checks</option>
+                  <option value="full">Full Scan (2-5min) - Comprehensive analysis</option>
+                </select>
+              </div>
+              
+              <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+                <button 
+                  onClick={startWebsiteScan}
+                  disabled={scanLoading || !scanTargetUrl}
+                  style={{
+                    padding: '1rem 2rem',
+                    backgroundColor: scanLoading ? 'rgba(0,255,255,0.3)' : 'transparent',
+                    border: '2px solid #00ffff',
+                    color: '#00ffff',
+                    cursor: (scanLoading || !scanTargetUrl) ? 'not-allowed' : 'pointer',
+                    fontFamily: 'Courier New, monospace',
+                    fontSize: '1rem',
+                    fontWeight: 'bold',
+                    borderRadius: '4px',
+                    flex: 1,
+                    textTransform: 'uppercase',
+                    boxShadow: !scanLoading && scanTargetUrl ? '0 0 20px rgba(0, 255, 255, 0.3)' : 'none',
+                    transition: 'all 0.3s'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!scanLoading && scanTargetUrl) {
+                      e.currentTarget.style.backgroundColor = 'rgba(0,255,255,0.2)'
+                      e.currentTarget.style.boxShadow = '0 0 30px rgba(0, 255, 255, 0.5)'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!scanLoading) {
+                      e.currentTarget.style.backgroundColor = 'transparent'
+                      e.currentTarget.style.boxShadow = '0 0 20px rgba(0, 255, 255, 0.3)'
+                    }
+                  }}
+                >
+                  {scanLoading ? '⏳ SCANNING IN PROGRESS...' : '🚀 START SCAN'}
+                </button>
+                
+                <button 
+                  onClick={() => {
+                    setScanTargetUrl('https://example.com')
+                  }}
+                  style={{
+                    padding: '1rem 1.5rem',
+                    backgroundColor: 'transparent',
+                    border: '2px solid #ffff00',
+                    color: '#ffff00',
+                    cursor: 'pointer',
+                    fontFamily: 'Courier New, monospace',
+                    fontSize: '0.9rem',
+                    borderRadius: '4px'
+                  }}
+                >
+                  📝 USE EXAMPLE
+                </button>
+              </div>
+              
+              {/* Scan Result */}
+              {scanResult && (
+                <div style={{ 
+                  marginTop: '1.5rem', 
+                  padding: '1.5rem', 
+                  backgroundColor: 'rgba(0,0,0,0.8)', 
+                  border: `2px solid ${scanResult.error ? '#ff0000' : scanResult.status === 'scanning' ? '#ffff00' : '#00ff00'}`,
+                  borderRadius: '4px'
+                }}>
+                  {scanResult.error ? (
+                    <div>
+                      <div style={{ color: '#ff0000', fontSize: '1.1rem', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+                        ❌ SCAN ERROR
+                      </div>
+                      <pre style={{ color: '#ff0000', fontSize: '0.9rem', whiteSpace: 'pre-wrap' }}>
+                        {scanResult.error}
+                      </pre>
+                    </div>
+                  ) : scanResult.status === 'scanning' ? (
+                    <div>
+                      <div style={{ color: '#ffff00', fontSize: '1.1rem', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+                        ⏳ SCANNING...
+                      </div>
+                      <div style={{ color: '#00ffff', fontSize: '0.9rem' }}>
+                        {scanResult.message}
+                      </div>
+                      <div style={{ color: '#ff9900', fontSize: '0.85rem', marginTop: '0.5rem' }}>
+                        Estimated time: {scanResult.estimatedTime}
+                      </div>
+                      <div style={{ marginTop: '1rem', color: '#00ff00' }}>
+                        <div style={{ fontSize: '0.8rem', marginBottom: '0.5rem' }}>Progress:</div>
+                        <div style={{ width: '100%', height: '6px', backgroundColor: 'rgba(0,255,0,0.2)', borderRadius: '3px', overflow: 'hidden' }}>
+                          <div style={{ 
+                            width: '100%', 
+                            height: '100%', 
+                            backgroundColor: '#00ff00',
+                            animation: 'slideProgress 2s ease-in-out infinite'
+                          }}></div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <div style={{ color: '#00ff00', fontSize: '1.2rem', marginBottom: '1rem', fontWeight: 'bold' }}>
+                        ✅ SCAN COMPLETED
+                      </div>
+                      
+                      {/* Security Score */}
+                      <div style={{ 
+                        padding: '1rem', 
+                        border: `2px solid ${scanResult.securityScore >= 80 ? '#00ff00' : scanResult.securityScore >= 50 ? '#ffff00' : '#ff0000'}`,
+                        backgroundColor: `rgba(${scanResult.securityScore >= 80 ? '0,255,0' : scanResult.securityScore >= 50 ? '255,255,0' : '255,0,0'},0.1)`,
+                        marginBottom: '1rem',
+                        borderRadius: '4px',
+                        textAlign: 'center'
+                      }}>
+                        <div style={{ fontSize: '0.9rem', color: '#00ffff', marginBottom: '0.5rem' }}>SECURITY SCORE</div>
+                        <div style={{ 
+                          fontSize: '3rem', 
+                          fontWeight: 'bold',
+                          color: scanResult.securityScore >= 80 ? '#00ff00' : scanResult.securityScore >= 50 ? '#ffff00' : '#ff0000'
+                        }}>
+                          {scanResult.securityScore}/100
+                        </div>
+                        <div style={{ fontSize: '0.85rem', color: '#ffff00', marginTop: '0.5rem' }}>
+                          Severity: {scanResult.severity?.toUpperCase() || 'UNKNOWN'}
+                        </div>
+                      </div>
+                      
+                      {/* Stats */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '1rem' }}>
+                        <div style={{ padding: '0.75rem', border: '1px solid #00ff00', backgroundColor: 'rgba(0,255,0,0.05)', textAlign: 'center' }}>
+                          <div style={{ color: '#00ffff', fontSize: '0.8rem' }}>Total Checks</div>
+                          <div style={{ color: '#00ff00', fontSize: '1.5rem', fontWeight: 'bold' }}>{scanResult.totalChecks || 0}</div>
+                        </div>
+                        <div style={{ padding: '0.75rem', border: '1px solid #00ff00', backgroundColor: 'rgba(0,255,0,0.05)', textAlign: 'center' }}>
+                          <div style={{ color: '#00ffff', fontSize: '0.8rem' }}>Passed</div>
+                          <div style={{ color: '#00ff00', fontSize: '1.5rem', fontWeight: 'bold' }}>{scanResult.passedChecks || 0}</div>
+                        </div>
+                        <div style={{ padding: '0.75rem', border: '1px solid #ff0000', backgroundColor: 'rgba(255,0,0,0.05)', textAlign: 'center' }}>
+                          <div style={{ color: '#00ffff', fontSize: '0.8rem' }}>Failed</div>
+                          <div style={{ color: '#ff0000', fontSize: '1.5rem', fontWeight: 'bold' }}>{scanResult.failedChecks || 0}</div>
+                        </div>
+                      </div>
+                      
+                      {/* Vulnerabilities */}
+                      {scanResult.vulnerabilities && scanResult.vulnerabilities.length > 0 && (
+                        <div style={{ marginTop: '1rem' }}>
+                          <div style={{ color: '#ff0000', fontSize: '1rem', marginBottom: '0.75rem', fontWeight: 'bold' }}>
+                            🚨 VULNERABILITIES FOUND ({scanResult.vulnerabilities.length})
+                          </div>
+                          <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                            {scanResult.vulnerabilities.map((vuln: any, index: number) => (
+                              <div key={index} style={{ 
+                                padding: '0.75rem', 
+                                marginBottom: '0.75rem',
+                                border: `1px solid ${vuln.severity === 'critical' ? '#ff0000' : vuln.severity === 'high' ? '#ff9900' : vuln.severity === 'medium' ? '#ffff00' : '#00ff00'}`,
+                                backgroundColor: 'rgba(0,0,0,0.5)',
+                                borderRadius: '4px'
+                              }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                                  <span style={{ color: '#00ffff', fontWeight: 'bold', fontSize: '0.9rem' }}>{vuln.type}</span>
+                                  <span style={{ 
+                                    color: vuln.severity === 'critical' ? '#ff0000' : vuln.severity === 'high' ? '#ff9900' : vuln.severity === 'medium' ? '#ffff00' : '#00ff00',
+                                    fontSize: '0.8rem',
+                                    fontWeight: 'bold',
+                                    textTransform: 'uppercase'
+                                  }}>
+                                    [{vuln.severity}]
+                                  </span>
+                                </div>
+                                <div style={{ color: '#ffffff', fontSize: '0.85rem', marginBottom: '0.5rem' }}>
+                                  {vuln.description}
+                                </div>
+                                <div style={{ color: '#00ff00', fontSize: '0.8rem' }}>
+                                  💡 {vuln.recommendation}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Security Headers */}
+                      {scanResult.securityHeaders && (
+                        <div style={{ marginTop: '1rem' }}>
+                          <div style={{ color: '#00ffff', fontSize: '1rem', marginBottom: '0.75rem', fontWeight: 'bold' }}>
+                            🛡️ SECURITY HEADERS
+                          </div>
+                          <div style={{ backgroundColor: 'rgba(0,0,0,0.5)', padding: '1rem', borderRadius: '4px' }}>
+                            {Object.entries(scanResult.securityHeaders).map(([header, value]: [string, any]) => (
+                              <div key={header} style={{ marginBottom: '0.5rem', fontSize: '0.85rem' }}>
+                                <span style={{ color: '#ffff00' }}>{header}:</span>{' '}
+                                <span style={{ color: value === 'Missing' ? '#ff0000' : '#00ff00' }}>
+                                  {value === 'Missing' ? '❌ Missing' : `✅ ${value}`}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Recommendations */}
+                      {scanResult.recommendations && scanResult.recommendations.length > 0 && (
+                        <div style={{ marginTop: '1rem' }}>
+                          <div style={{ color: '#00ff00', fontSize: '1rem', marginBottom: '0.75rem', fontWeight: 'bold' }}>
+                            📋 RECOMMENDATIONS
+                          </div>
+                          <ul style={{ color: '#ffffff', fontSize: '0.85rem', paddingLeft: '1.5rem' }}>
+                            {scanResult.recommendations.map((rec: string, index: number) => (
+                              <li key={index} style={{ marginBottom: '0.5rem' }}>{rec}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      
+                      {/* Scan Info */}
+                      <div style={{ marginTop: '1rem', padding: '0.75rem', backgroundColor: 'rgba(0,255,255,0.05)', border: '1px solid #00ffff', borderRadius: '4px' }}>
+                        <div style={{ color: '#00ffff', fontSize: '0.8rem' }}>
+                          🕐 Scan Duration: {scanResult.scanDuration}s | 
+                          🎯 Target: {scanResult.targetUrl} |
+                          ⏰ Completed: {new Date(scanResult.completedAt).toLocaleString()}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <pre style={{ color: '#00ff00', margin: 0 }}>
 {`╔══════════════════════════════════════════════════════════════╗
