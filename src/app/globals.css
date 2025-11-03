@@ -168,3 +168,268 @@ body > button:last-of-type,
 html > body > button {
   display: none !important;
 }
+
+/* ============================================ */
+/* RESPONSIVE DESIGN - MOBILE FIRST */
+/* ============================================ */
+
+/* Base Mobile Styles (< 640px) */
+@media (max-width: 639px) {
+  /* Typography scaling */
+  html {
+    font-size: 14px;
+  }
+  
+  /* Container padding */
+  .responsive-container {
+    padding: 0.5rem !important;
+  }
+  
+  /* Navigation tabs - Stack vertically on mobile */
+  .nav-tabs {
+    flex-direction: column !important;
+    gap: 0.25rem !important;
+  }
+  
+  .nav-tab {
+    width: 100% !important;
+    padding: 0.75rem 1rem !important;
+    font-size: 0.85rem !important;
+  }
+  
+  /* Header adjustments */
+  .header-title {
+    font-size: 1.2rem !important;
+  }
+  
+  .header-subtitle {
+    font-size: 0.7rem !important;
+  }
+  
+  /* Terminal/Content area */
+  .terminal-container {
+    height: calc(100vh - 180px) !important;
+    padding: 0.5rem !important;
+    font-size: 0.75rem !important;
+  }
+  
+  /* Form inputs */
+  .form-input,
+  input, textarea, select {
+    width: 100% !important;
+    padding: 0.75rem !important;
+    font-size: 0.9rem !important;
+  }
+  
+  /* Buttons */
+  .btn, button {
+    width: 100% !important;
+    padding: 0.75rem 1rem !important;
+    font-size: 0.9rem !important;
+    margin-bottom: 0.5rem;
+  }
+  
+  /* Cards/Panels */
+  .card, .panel {
+    padding: 0.75rem !important;
+    margin-bottom: 0.75rem !important;
+  }
+  
+  /* Grid layouts - Single column on mobile */
+  .grid-2, .grid-3, .grid-4 {
+    grid-template-columns: 1fr !important;
+    gap: 0.5rem !important;
+  }
+  
+  /* Tables - Scroll horizontally */
+  .table-container {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  table {
+    min-width: 600px;
+  }
+  
+  /* Hide non-essential elements on mobile */
+  .desktop-only {
+    display: none !important;
+  }
+  
+  /* Matrix rain - Reduce on mobile */
+  .matrix-rain {
+    opacity: 0.3 !important;
+  }
+}
+
+/* Tablet Portrait (640px - 767px) */
+@media (min-width: 640px) and (max-width: 767px) {
+  html {
+    font-size: 15px;
+  }
+  
+  .nav-tabs {
+    flex-wrap: wrap !important;
+  }
+  
+  .nav-tab {
+    flex: 1 1 calc(50% - 4px) !important;
+    padding: 0.85rem 1.25rem !important;
+  }
+  
+  .grid-2 {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  
+  .terminal-container {
+    height: calc(100vh - 200px) !important;
+    padding: 0.75rem !important;
+  }
+}
+
+/* Tablet Landscape (768px - 1023px) */
+@media (min-width: 768px) and (max-width: 1023px) {
+  html {
+    font-size: 15px;
+  }
+  
+  .nav-tabs {
+    flex-wrap: nowrap !important;
+  }
+  
+  .nav-tab {
+    padding: 0.9rem 1.5rem !important;
+    font-size: 0.85rem !important;
+  }
+  
+  .grid-2 {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  
+  .grid-3 {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  
+  .terminal-container {
+    height: calc(100vh - 220px) !important;
+    padding: 1rem !important;
+  }
+  
+  .btn {
+    width: auto !important;
+  }
+}
+
+/* Desktop (1024px and up) */
+@media (min-width: 1024px) {
+  html {
+    font-size: 16px;
+  }
+  
+  .grid-2 {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  
+  .grid-3 {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+  
+  .grid-4 {
+    grid-template-columns: repeat(4, 1fr) !important;
+  }
+  
+  .mobile-only {
+    display: none !important;
+  }
+}
+
+/* Large Desktop (1440px and up) */
+@media (min-width: 1440px) {
+  html {
+    font-size: 16px;
+  }
+  
+  .container-max {
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+}
+
+/* Touch Device Optimizations */
+@media (hover: none) and (pointer: coarse) {
+  /* Larger touch targets */
+  button, a, input, select {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Remove hover effects */
+  *:hover {
+    transition: none !important;
+  }
+  
+  /* Better scroll behavior */
+  * {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+  }
+}
+
+/* Landscape mode adjustments */
+@media (max-width: 767px) and (orientation: landscape) {
+  .terminal-container {
+    height: calc(100vh - 120px) !important;
+  }
+  
+  .header-title {
+    font-size: 1rem !important;
+  }
+  
+  .nav-tab {
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.75rem !important;
+  }
+}
+
+/* High DPI / Retina Displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Accessibility - Reduce motion */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  
+  .matrix-rain {
+    animation: none !important;
+  }
+}
+
+/* Dark mode support (if needed) */
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: #000000;
+    color: #00ff00;
+  }
+}
+
+/* Print styles */
+@media print {
+  .nav-tabs,
+  .matrix-rain,
+  button:not(.print-button) {
+    display: none !important;
+  }
+  
+  body {
+    background: white;
+    color: black;
+  }
+}

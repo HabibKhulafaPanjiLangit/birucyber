@@ -20,17 +20,48 @@ export const metadata: Metadata = {
   icons: {
     icon: "/favicon.svg",
   },
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 5,
+    userScalable: true,
+    viewportFit: "cover",
+  },
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#000000" },
+    { media: "(prefers-color-scheme: light)", color: "#000000" }
+  ],
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "BiruCyber",
+  },
+  formatDetection: {
+    telephone: false,
+    email: false,
+    address: false,
+  },
   openGraph: {
     title: "BiruCyber Security Portal",
     description: "Interactive cybersecurity training platform",
     url: "/",
     siteName: "BiruCyber",
     type: "website",
+    locale: "en_US",
   },
   twitter: {
     card: "summary_large_image",
     title: "BiruCyber Security Portal",
     description: "Interactive cybersecurity training platform",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+    },
   },
 };
 
