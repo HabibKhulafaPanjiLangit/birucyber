@@ -1672,8 +1672,8 @@ Memory Usage: ${Math.round(dashboardData.data.system.memory.heapUsed / 1024 / 10
 
         {/* Exploits Tab */}
         {activeTab === 'exploits' && (
-          <div style={{ padding: '1rem' }}>
-            <pre style={{ color: '#00ff00', margin: 0 }}>
+          <div style={{ padding: '1.5rem', height: 'calc(100vh - 200px)', overflowY: 'auto' }}>
+            <pre style={{ color: '#00ff00', margin: '0 0 2rem 0', fontSize: '0.85rem' }}>
 {`╔══════════════════════════════════════════════════════════════╗
 ║                    ACTIVE EXPLOITS                              ║
 ╚══════════════════════════════════════════════════════════════╝
@@ -1681,20 +1681,459 @@ Memory Usage: ${Math.round(dashboardData.data.system.memory.heapUsed / 1024 / 10
 [+] LOADING EXPLOIT DATABASE...
 [+] 1337 exploits loaded
 [+] 42 zero-day exploits available
-[+] 8192 payload combinations
-
-SELECT EXPLOIT CATEGORY:
-1. SQL Injection Attacks
-2. Cross-Site Scripting (XSS)
-3. Buffer Overflow Exploits
-4. Privilege Escalation
-5. Denial of Service (DoS)
-6. Remote Code Execution
-7. Cryptographic Attacks
-8. Social Engineering Toolkit
-
-Enter selection number or type 'back' to return`}
+[+] 8192 payload combinations`}
             </pre>
+
+            {/* Exploit Categories Grid */}
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', 
+              gap: '1.5rem',
+              marginBottom: '2rem'
+            }}>
+              {/* SQL Injection */}
+              <div 
+                onClick={() => setActiveTab('modules')}
+                style={{
+                  border: '2px solid #00ff00',
+                  background: 'linear-gradient(135deg, rgba(0,255,0,0.1), rgba(0,0,0,0.8))',
+                  padding: '1.5rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  borderRadius: '8px',
+                  boxShadow: '0 0 20px rgba(0, 255, 0, 0.3)',
+                  position: 'relative',
+                  overflow: 'hidden'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-5px)';
+                  e.currentTarget.style.boxShadow = '0 0 30px rgba(0, 255, 0, 0.5)';
+                  e.currentTarget.style.borderColor = '#00ffff';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 0 20px rgba(0, 255, 0, 0.3)';
+                  e.currentTarget.style.borderColor = '#00ff00';
+                }}
+              >
+                <div style={{
+                  color: '#00ff00',
+                  fontSize: '2.5rem',
+                  marginBottom: '1rem',
+                  textAlign: 'center',
+                  textShadow: '0 0 15px rgba(0, 255, 0, 0.8)'
+                }}>
+                  💉
+                </div>
+                <div style={{
+                  color: '#00ffff',
+                  fontSize: '1.2rem',
+                  fontWeight: 'bold',
+                  marginBottom: '0.5rem',
+                  textAlign: 'center',
+                  textShadow: '0 0 10px rgba(0, 255, 255, 0.5)'
+                }}>
+                  SQL INJECTION
+                </div>
+                <div style={{
+                  color: '#00ff00',
+                  fontSize: '0.85rem',
+                  textAlign: 'center',
+                  lineHeight: '1.5',
+                  opacity: 0.8
+                }}>
+                  Exploit database queries & authentication bypass
+                </div>
+                <div style={{
+                  marginTop: '1rem',
+                  padding: '0.5rem',
+                  background: 'rgba(0, 255, 0, 0.1)',
+                  border: '1px solid rgba(0, 255, 0, 0.3)',
+                  borderRadius: '4px',
+                  fontSize: '0.75rem',
+                  color: '#ffff00',
+                  textAlign: 'center'
+                }}>
+                  ⚡ 347 Payloads Available
+                </div>
+              </div>
+
+              {/* XSS */}
+              <div 
+                onClick={() => setActiveTab('modules')}
+                style={{
+                  border: '2px solid #ff00ff',
+                  background: 'linear-gradient(135deg, rgba(255,0,255,0.1), rgba(0,0,0,0.8))',
+                  padding: '1.5rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  borderRadius: '8px',
+                  boxShadow: '0 0 20px rgba(255, 0, 255, 0.3)',
+                  position: 'relative'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-5px)';
+                  e.currentTarget.style.boxShadow = '0 0 30px rgba(255, 0, 255, 0.5)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 0 20px rgba(255, 0, 255, 0.3)';
+                }}
+              >
+                <div style={{
+                  color: '#ff00ff',
+                  fontSize: '2.5rem',
+                  marginBottom: '1rem',
+                  textAlign: 'center',
+                  textShadow: '0 0 15px rgba(255, 0, 255, 0.8)'
+                }}>
+                  ⚡
+                </div>
+                <div style={{
+                  color: '#ff00ff',
+                  fontSize: '1.2rem',
+                  fontWeight: 'bold',
+                  marginBottom: '0.5rem',
+                  textAlign: 'center',
+                  textShadow: '0 0 10px rgba(255, 0, 255, 0.5)'
+                }}>
+                  CROSS-SITE SCRIPTING
+                </div>
+                <div style={{
+                  color: '#ff00ff',
+                  fontSize: '0.85rem',
+                  textAlign: 'center',
+                  lineHeight: '1.5',
+                  opacity: 0.8
+                }}>
+                  Inject malicious scripts into web pages
+                </div>
+                <div style={{
+                  marginTop: '1rem',
+                  padding: '0.5rem',
+                  background: 'rgba(255, 0, 255, 0.1)',
+                  border: '1px solid rgba(255, 0, 255, 0.3)',
+                  borderRadius: '4px',
+                  fontSize: '0.75rem',
+                  color: '#ffff00',
+                  textAlign: 'center'
+                }}>
+                  ⚡ 523 Payloads Available
+                </div>
+              </div>
+
+              {/* Access Control */}
+              <div 
+                onClick={() => setActiveTab('modules')}
+                style={{
+                  border: '2px solid #ffff00',
+                  background: 'linear-gradient(135deg, rgba(255,255,0,0.1), rgba(0,0,0,0.8))',
+                  padding: '1.5rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  borderRadius: '8px',
+                  boxShadow: '0 0 20px rgba(255, 255, 0, 0.3)',
+                  position: 'relative'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-5px)';
+                  e.currentTarget.style.boxShadow = '0 0 30px rgba(255, 255, 0, 0.5)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 0 20px rgba(255, 255, 0, 0.3)';
+                }}
+              >
+                <div style={{
+                  color: '#ffff00',
+                  fontSize: '2.5rem',
+                  marginBottom: '1rem',
+                  textAlign: 'center',
+                  textShadow: '0 0 15px rgba(255, 255, 0, 0.8)'
+                }}>
+                  🔓
+                </div>
+                <div style={{
+                  color: '#ffff00',
+                  fontSize: '1.2rem',
+                  fontWeight: 'bold',
+                  marginBottom: '0.5rem',
+                  textAlign: 'center',
+                  textShadow: '0 0 10px rgba(255, 255, 0, 0.5)'
+                }}>
+                  ACCESS CONTROL BYPASS
+                </div>
+                <div style={{
+                  color: '#ffff00',
+                  fontSize: '0.85rem',
+                  textAlign: 'center',
+                  lineHeight: '1.5',
+                  opacity: 0.8
+                }}>
+                  Privilege escalation & authorization bypass
+                </div>
+                <div style={{
+                  marginTop: '1rem',
+                  padding: '0.5rem',
+                  background: 'rgba(255, 255, 0, 0.1)',
+                  border: '1px solid rgba(255, 255, 0, 0.3)',
+                  borderRadius: '4px',
+                  fontSize: '0.75rem',
+                  color: '#00ff00',
+                  textAlign: 'center'
+                }}>
+                  ⚡ 156 Payloads Available
+                </div>
+              </div>
+
+              {/* CSRF */}
+              <div 
+                style={{
+                  border: '2px solid #ff6600',
+                  background: 'linear-gradient(135deg, rgba(255,102,0,0.1), rgba(0,0,0,0.8))',
+                  padding: '1.5rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  borderRadius: '8px',
+                  boxShadow: '0 0 20px rgba(255, 102, 0, 0.3)',
+                  position: 'relative',
+                  opacity: 0.6
+                }}
+              >
+                <div style={{
+                  color: '#ff6600',
+                  fontSize: '2.5rem',
+                  marginBottom: '1rem',
+                  textAlign: 'center',
+                  textShadow: '0 0 15px rgba(255, 102, 0, 0.8)'
+                }}>
+                  🎭
+                </div>
+                <div style={{
+                  color: '#ff6600',
+                  fontSize: '1.2rem',
+                  fontWeight: 'bold',
+                  marginBottom: '0.5rem',
+                  textAlign: 'center',
+                  textShadow: '0 0 10px rgba(255, 102, 0, 0.5)'
+                }}>
+                  CSRF ATTACKS
+                </div>
+                <div style={{
+                  color: '#ff6600',
+                  fontSize: '0.85rem',
+                  textAlign: 'center',
+                  lineHeight: '1.5',
+                  opacity: 0.8
+                }}>
+                  Cross-site request forgery exploitation
+                </div>
+                <div style={{
+                  marginTop: '1rem',
+                  padding: '0.5rem',
+                  background: 'rgba(255, 102, 0, 0.1)',
+                  border: '1px solid rgba(255, 102, 0, 0.3)',
+                  borderRadius: '4px',
+                  fontSize: '0.75rem',
+                  color: '#999',
+                  textAlign: 'center'
+                }}>
+                  🔒 Coming Soon
+                </div>
+              </div>
+
+              {/* Remote Code Execution */}
+              <div 
+                style={{
+                  border: '2px solid #ff0000',
+                  background: 'linear-gradient(135deg, rgba(255,0,0,0.1), rgba(0,0,0,0.8))',
+                  padding: '1.5rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  borderRadius: '8px',
+                  boxShadow: '0 0 20px rgba(255, 0, 0, 0.3)',
+                  position: 'relative',
+                  opacity: 0.6
+                }}
+              >
+                <div style={{
+                  color: '#ff0000',
+                  fontSize: '2.5rem',
+                  marginBottom: '1rem',
+                  textAlign: 'center',
+                  textShadow: '0 0 15px rgba(255, 0, 0, 0.8)'
+                }}>
+                  💀
+                </div>
+                <div style={{
+                  color: '#ff0000',
+                  fontSize: '1.2rem',
+                  fontWeight: 'bold',
+                  marginBottom: '0.5rem',
+                  textAlign: 'center',
+                  textShadow: '0 0 10px rgba(255, 0, 0, 0.5)'
+                }}>
+                  REMOTE CODE EXECUTION
+                </div>
+                <div style={{
+                  color: '#ff0000',
+                  fontSize: '0.85rem',
+                  textAlign: 'center',
+                  lineHeight: '1.5',
+                  opacity: 0.8
+                }}>
+                  Execute arbitrary code on target systems
+                </div>
+                <div style={{
+                  marginTop: '1rem',
+                  padding: '0.5rem',
+                  background: 'rgba(255, 0, 0, 0.1)',
+                  border: '1px solid rgba(255, 0, 0, 0.3)',
+                  borderRadius: '4px',
+                  fontSize: '0.75rem',
+                  color: '#999',
+                  textAlign: 'center'
+                }}>
+                  🔒 Coming Soon
+                </div>
+              </div>
+
+              {/* DoS Attacks */}
+              <div 
+                style={{
+                  border: '2px solid #00ffff',
+                  background: 'linear-gradient(135deg, rgba(0,255,255,0.1), rgba(0,0,0,0.8))',
+                  padding: '1.5rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  borderRadius: '8px',
+                  boxShadow: '0 0 20px rgba(0, 255, 255, 0.3)',
+                  position: 'relative',
+                  opacity: 0.6
+                }}
+              >
+                <div style={{
+                  color: '#00ffff',
+                  fontSize: '2.5rem',
+                  marginBottom: '1rem',
+                  textAlign: 'center',
+                  textShadow: '0 0 15px rgba(0, 255, 255, 0.8)'
+                }}>
+                  ⚠️
+                </div>
+                <div style={{
+                  color: '#00ffff',
+                  fontSize: '1.2rem',
+                  fontWeight: 'bold',
+                  marginBottom: '0.5rem',
+                  textAlign: 'center',
+                  textShadow: '0 0 10px rgba(0, 255, 255, 0.5)'
+                }}>
+                  DENIAL OF SERVICE
+                </div>
+                <div style={{
+                  color: '#00ffff',
+                  fontSize: '0.85rem',
+                  textAlign: 'center',
+                  lineHeight: '1.5',
+                  opacity: 0.8
+                }}>
+                  Overwhelm services & system resources
+                </div>
+                <div style={{
+                  marginTop: '1rem',
+                  padding: '0.5rem',
+                  background: 'rgba(0, 255, 255, 0.1)',
+                  border: '1px solid rgba(0, 255, 255, 0.3)',
+                  borderRadius: '4px',
+                  fontSize: '0.75rem',
+                  color: '#999',
+                  textAlign: 'center'
+                }}>
+                  🔒 Coming Soon
+                </div>
+              </div>
+            </div>
+
+            {/* Active Exploits Info */}
+            <div style={{
+              border: '2px solid #00ff00',
+              background: 'rgba(0, 255, 0, 0.05)',
+              padding: '1.5rem',
+              borderRadius: '8px',
+              boxShadow: '0 0 20px rgba(0, 255, 0, 0.2)'
+            }}>
+              <div style={{
+                color: '#00ffff',
+                fontSize: '1.1rem',
+                fontWeight: 'bold',
+                marginBottom: '1rem',
+                textShadow: '0 0 10px rgba(0, 255, 255, 0.5)'
+              }}>
+                💡 QUICK ACCESS
+              </div>
+              <div style={{
+                color: '#00ff00',
+                fontSize: '0.9rem',
+                lineHeight: '1.8',
+                fontFamily: 'Courier New, monospace'
+              }}>
+                • Click on <span style={{color: '#00ffff', fontWeight: 'bold'}}>SQL INJECTION</span>, <span style={{color: '#ff00ff', fontWeight: 'bold'}}>XSS</span>, or <span style={{color: '#ffff00', fontWeight: 'bold'}}>ACCESS CONTROL</span> to access the MODULES tab<br/>
+                • All active exploits are available in the MODULES section<br/>
+                • Test in <span style={{color: '#ffff00'}}>Safe Mode</span> or <span style={{color: '#ff0000'}}>Vulnerable Mode</span><br/>
+                • Use pre-loaded exploit payloads for quick testing<br/>
+                • Monitor attack results in real-time
+              </div>
+            </div>
+
+            {/* Stats Bar */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: '1rem',
+              marginTop: '2rem'
+            }}>
+              <div style={{
+                border: '1px solid #00ff00',
+                background: 'rgba(0, 0, 0, 0.5)',
+                padding: '1rem',
+                textAlign: 'center',
+                borderRadius: '4px'
+              }}>
+                <div style={{color: '#00ff00', fontSize: '2rem', fontWeight: 'bold'}}>1337</div>
+                <div style={{color: '#00ffff', fontSize: '0.8rem'}}>Total Exploits</div>
+              </div>
+              <div style={{
+                border: '1px solid #ff00ff',
+                background: 'rgba(0, 0, 0, 0.5)',
+                padding: '1rem',
+                textAlign: 'center',
+                borderRadius: '4px'
+              }}>
+                <div style={{color: '#ff00ff', fontSize: '2rem', fontWeight: 'bold'}}>42</div>
+                <div style={{color: '#ff00ff', fontSize: '0.8rem'}}>Zero-Day Exploits</div>
+              </div>
+              <div style={{
+                border: '1px solid #ffff00',
+                background: 'rgba(0, 0, 0, 0.5)',
+                padding: '1rem',
+                textAlign: 'center',
+                borderRadius: '4px'
+              }}>
+                <div style={{color: '#ffff00', fontSize: '2rem', fontWeight: 'bold'}}>8192</div>
+                <div style={{color: '#ffff00', fontSize: '0.8rem'}}>Payload Combinations</div>
+              </div>
+              <div style={{
+                border: '1px solid #00ffff',
+                background: 'rgba(0, 0, 0, 0.5)',
+                padding: '1rem',
+                textAlign: 'center',
+                borderRadius: '4px'
+              }}>
+                <div style={{color: '#00ffff', fontSize: '2rem', fontWeight: 'bold'}}>3</div>
+                <div style={{color: '#00ffff', fontSize: '0.8rem'}}>Active Modules</div>
+              </div>
+            </div>
           </div>
         )}
 
