@@ -12,8 +12,6 @@ const nextConfig: NextConfig = {
   compress: true,
   poweredByHeader: false,
   reactStrictMode: true,
-  // Output configuration for Railway
-  output: 'standalone',
 };
 
 export default nextConfig;

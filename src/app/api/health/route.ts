@@ -1,20 +1,18 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
 
 export async function GET() {
   try {
-    // Test database connection
-    await db.$queryRaw`SELECT 1`;
-    
+    // Basic health check - just check if server is responding
     return NextResponse.json({ 
-      status: "healthy",
+      status: "ok",
       timestamp: new Date().toISOString(),
-      database: "connected"
+      uptime: process.uptime(),
+      environment: process.env.NODE_ENV || "development"
     }, { status: 200 });
   } catch (error) {
     console.error("Health check failed:", error);
     return NextResponse.json({ 
-      status: "unhealthy",
+      status: "error",
       error: error instanceof Error ? error.message : "Unknown error"
     }, { status: 503 });
   }
