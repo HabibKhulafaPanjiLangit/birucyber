@@ -420,6 +420,71 @@ html > body > button {
   }
 }
 
+/* Navigation Responsive Styles */
+.nav-tabs {
+  scrollbar-width: thin;
+  scrollbar-color: #00ff00 rgba(0, 0, 0, 0.3);
+}
+
+.nav-tabs::-webkit-scrollbar {
+  height: 6px;
+}
+
+.nav-tabs::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.nav-tabs::-webkit-scrollbar-thumb {
+  background: #00ff00;
+  border-radius: 3px;
+}
+
+.nav-tabs::-webkit-scrollbar-thumb:hover {
+  background: #00ffff;
+}
+
+/* Mobile Navigation - Icon Only */
+@media (max-width: 768px) {
+  .nav-tabs {
+    gap: 2px !important;
+    padding: 0.25rem !important;
+    justify-content: flex-start !important;
+  }
+  
+  .nav-tab {
+    flex: 0 0 auto !important;
+    min-width: fit-content !important;
+    padding: 0.5rem 0.6rem !important;
+    font-size: 0.7rem !important;
+    letter-spacing: 0.3px !important;
+  }
+  
+  /* Hide text labels on mobile, show only icons */
+  .nav-tab span:last-child {
+    display: none !important;
+  }
+  
+  .nav-tab span:first-child {
+    margin-right: 0 !important;
+    font-size: 1.5rem !important;
+  }
+  
+  /* Status badges on mobile - smaller text */
+  .status-badge {
+    font-size: 0.65rem !important;
+    padding: 3px 6px !important;
+    letter-spacing: 0 !important;
+  }
+}
+
+/* Tablet Navigation */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .nav-tab {
+    padding: 0.6rem 1.2rem !important;
+    font-size: 0.8rem !important;
+  }
+}
+
 /* Print styles */
 @media print {
   .nav-tabs,

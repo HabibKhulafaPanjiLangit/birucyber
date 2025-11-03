@@ -506,7 +506,7 @@ Type 'help' for available commands.`
               </div>
               <div>
                 <h1 style={{ 
-                  fontSize: '1.5rem', 
+                  fontSize: 'clamp(1rem, 4vw, 1.5rem)', 
                   fontWeight: 'bold', 
                   background: 'linear-gradient(90deg, #00ff00, #00ffff, #00ff00)',
                   WebkitBackgroundClip: 'text',
@@ -515,7 +515,7 @@ Type 'help' for available commands.`
                   fontFamily: 'Courier New, monospace',
                   margin: 0,
                   filter: 'drop-shadow(0 0 10px rgba(0, 255, 255, 0.5))',
-                  letterSpacing: '2px'
+                  letterSpacing: 'clamp(0.5px, 0.3vw, 2px)'
                 }}>
                   {displayText}
                   <span style={{ 
@@ -526,11 +526,11 @@ Type 'help' for available commands.`
                 </h1>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.9rem', alignItems: 'center' }}>
-              <span style={{ 
+            <div style={{ display: 'flex', gap: 'clamp(0.5rem, 2vw, 1.5rem)', fontSize: 'clamp(0.65rem, 1.5vw, 0.9rem)', alignItems: 'center', flexWrap: 'wrap' }}>
+              <span className="status-badge" style={{ 
                 color: '#ffff00',
                 textShadow: '0 0 10px #ffff00, 0 0 20px #ffff00, 0 0 30px #ff9900',
-                padding: '6px 16px',
+                padding: 'clamp(4px, 1vw, 6px) clamp(8px, 2vw, 16px)',
                 border: '2px solid transparent',
                 borderImage: 'linear-gradient(135deg, #ffff00, #ff9900) 1',
                 borderRadius: '6px',
@@ -538,9 +538,10 @@ Type 'help' for available commands.`
                 boxShadow: '0 0 20px rgba(255, 255, 0, 0.4), inset 0 0 20px rgba(255, 255, 0, 0.1)',
                 animation: 'flicker 4s ease-in-out infinite',
                 fontWeight: 'bold',
-                letterSpacing: '1px',
+                letterSpacing: 'clamp(0.3px, 0.2vw, 1px)',
                 position: 'relative',
-                overflow: 'hidden'
+                overflow: 'hidden',
+                whiteSpace: 'nowrap'
               }}>
                 <span style={{
                   position: 'absolute',
@@ -553,10 +554,10 @@ Type 'help' for available commands.`
                 }}></span>
                 🔐 ENCRYPTED
               </span>
-              <span style={{ 
+              <span className="status-badge" style={{ 
                 color: '#00ff00',
                 textShadow: '0 0 10px #00ff00, 0 0 20px #00ff00, 0 0 30px #00ff00',
-                padding: '6px 16px',
+                padding: 'clamp(4px, 1vw, 6px) clamp(8px, 2vw, 16px)',
                 border: '2px solid transparent',
                 borderImage: 'linear-gradient(135deg, #00ff00, #00ffff) 1',
                 borderRadius: '6px',
@@ -564,9 +565,10 @@ Type 'help' for available commands.`
                 boxShadow: '0 0 20px rgba(0, 255, 0, 0.4), inset 0 0 20px rgba(0, 255, 0, 0.1)',
                 animation: 'flicker 3s ease-in-out infinite',
                 fontWeight: 'bold',
-                letterSpacing: '1px',
+                letterSpacing: 'clamp(0.3px, 0.2vw, 1px)',
                 position: 'relative',
-                overflow: 'hidden'
+                overflow: 'hidden',
+                whiteSpace: 'nowrap'
               }}>
                 <span style={{
                   position: 'absolute',
@@ -579,10 +581,10 @@ Type 'help' for available commands.`
                 }}></span>
                 👤 ANONYMOUS
               </span>
-              <span style={{ 
+              <span className="status-badge" style={{ 
                 color: '#00ffff',
                 textShadow: '0 0 10px #00ffff, 0 0 20px #00ffff, 0 0 30px #ff00ff',
-                padding: '6px 16px',
+                padding: 'clamp(4px, 1vw, 6px) clamp(8px, 2vw, 16px)',
                 border: '2px solid transparent',
                 borderImage: 'linear-gradient(135deg, #00ffff, #ff00ff) 1',
                 borderRadius: '6px',
@@ -590,9 +592,10 @@ Type 'help' for available commands.`
                 boxShadow: '0 0 20px rgba(0, 255, 255, 0.4), inset 0 0 20px rgba(0, 255, 255, 0.1)',
                 animation: 'electricArc 3s ease-in-out infinite',
                 fontWeight: 'bold',
-                letterSpacing: '1px',
+                letterSpacing: 'clamp(0.3px, 0.2vw, 1px)',
                 position: 'relative',
-                overflow: 'hidden'
+                overflow: 'hidden',
+                whiteSpace: 'nowrap'
               }}>
                 <span style={{
                   position: 'absolute',
@@ -610,31 +613,35 @@ Type 'help' for available commands.`
         </header>
 
         {/* Navigation */}
-        <div style={{ 
+        <div className="nav-tabs" style={{ 
           display: 'flex', 
-          gap: '2px', 
+          gap: '4px',
+          flexWrap: 'wrap',
           background: 'linear-gradient(180deg, rgba(0,0,0,0.95) 0%, rgba(10,10,30,0.90) 100%)',
           borderBottom: '2px solid',
           borderImage: 'linear-gradient(90deg, #00ff00, #00ffff, #ff00ff, #00ff00) 1',
           padding: '0.5rem',
-          backdropFilter: 'blur(10px)'
+          backdropFilter: 'blur(10px)',
+          overflowX: 'auto',
+          WebkitOverflowScrolling: 'touch'
         }}>
           {[
             { id: 'terminal', icon: '💻', label: 'TERMINAL' },
             { id: 'modules', icon: '🔧', label: 'MODULES' },
             { id: 'scan', icon: '🔍', label: 'SCANNER' },
             { id: 'exploits', icon: '⚔️', label: 'EXPLOITS' },
-            { id: 'logs', icon: '�', label: 'USER MGMT' }
+            { id: 'logs', icon: '👥', label: 'USER MGMT' }
           ].map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
+              className="nav-tab"
               style={{
-                padding: '1rem 2rem',
-                fontSize: '0.9rem',
+                padding: 'clamp(0.5rem, 2vw, 1rem) clamp(0.75rem, 3vw, 2rem)',
+                fontSize: 'clamp(0.7rem, 2vw, 0.9rem)',
                 fontFamily: 'Courier New, monospace',
                 fontWeight: 'bold',
-                letterSpacing: '1px',
+                letterSpacing: '0.5px',
                 border: activeTab === tab.id ? '2px solid' : '2px solid transparent',
                 borderImage: activeTab === tab.id ? 'linear-gradient(135deg, #00ff00, #00ffff) 1' : 'none',
                 cursor: 'pointer',
@@ -649,7 +656,10 @@ Type 'help' for available commands.`
                   : 'none',
                 textShadow: activeTab === tab.id ? '0 0 10px #00ffff' : 'none',
                 position: 'relative',
-                overflow: 'hidden'
+                overflow: 'hidden',
+                flex: '1 1 auto',
+                minWidth: 'max-content',
+                whiteSpace: 'nowrap'
               }}
               onMouseEnter={(e) => {
                 if (activeTab !== tab.id) {
@@ -664,8 +674,8 @@ Type 'help' for available commands.`
                 }
               }}
             >
-              <span style={{ marginRight: '0.5rem' }}>{tab.icon}</span>
-              {tab.label}
+              <span style={{ marginRight: 'clamp(0.25rem, 1vw, 0.5rem)' }}>{tab.icon}</span>
+              <span style={{ display: 'inline-block' }}>{tab.label}</span>
             </button>
           ))}
         </div>
