@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { PrismaClient } from '@prisma/client'
 
-const prisma = new PrismaClient()
+// Initialize Prisma with error handling
+let prisma: PrismaClient | null = null
+
+try {
+  prisma = new PrismaClient()
+} catch (error) {
+  console.error('Prisma initialization error:', error)
+}
 
 // Security Headers to check
 const SECURITY_HEADERS = [
@@ -56,6 +63,22 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Check if Prisma is available
+    if (!prisma) {
+      // Perform scan without database logging (temporary solution)
+      const scanId = 'temp-' + Date.now()
+      performScanNoDB(scanId, url, scanType).catch(console.error)
+      
+      return NextResponse.json({
+        success: true,
+        message: 'Scan initiated (database logging disabled)',
+        scanId: scanId,
+        targetUrl: url.toString(),
+        estimatedTime: scanType === 'full' ? '2-5 minutes' : '30-60 seconds',
+        warning: 'Database not connected. Results will be displayed but not saved.'
+      })
+    }
+
     // Create scan record
     const scan = await prisma.websiteScan.create({
       data: {
@@ -84,6 +107,217 @@ export async function POST(request: NextRequest) {
       { error: 'Failed to initiate scan: ' + error.message },
       { status: 500 }
     )
+  }
+}
+
+// Store scan results in memory when database is not available
+const scanResults = new Map<string, any>()
+
+async function performScanNoDB(scanId: string, url: URL, scanType: string) {
+  const startTime = Date.now()
+  const results: any = {
+    vulnerabilities: [],
+    securityHeaders: {},
+    sslInfo: {},
+    technologies: [],
+    openPorts: [],
+    checks: {
+      total: 0,
+      passed: 0,
+      failed: 0
+    }
+  }
+
+  try {
+    // 1. Check if website is accessible
+    results.checks.total++
+    try {
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        headers: {
+          'User-Agent': 'BiruCyber Security Scanner/1.0'
+        },
+        redirect: 'follow',
+        signal: AbortSignal.timeout(10000)
+      })
+
+      if (response.ok) {
+        results.checks.passed++
+      }
+
+      // 2. Check Security Headers
+      results.checks.total += SECURITY_HEADERS.length
+      const headers: any = {}
+      
+      for (const header of SECURITY_HEADERS) {
+        const value = response.headers.get(header)
+        headers[header] = value || 'Missing'
+        
+        if (value) {
+          results.checks.passed++
+        } else {
+          results.checks.failed++
+          results.vulnerabilities.push({
+            type: 'Missing Security Header',
+            name: header,
+            severity: 'medium',
+            description: `Security header ${header} is not set`,
+            recommendation: `Add ${header} header to improve security`
+          })
+        }
+      }
+      results.securityHeaders = headers
+
+      // 3. Detect Technologies
+      const contentType = response.headers.get('content-type')
+      const server = response.headers.get('server')
+      const poweredBy = response.headers.get('x-powered-by')
+      
+      if (server) results.technologies.push(`Server: ${server}`)
+      if (poweredBy) results.technologies.push(`Powered By: ${poweredBy}`)
+      if (contentType) results.technologies.push(`Content-Type: ${contentType}`)
+
+      // 4. Get response body
+      const html = await response.text()
+
+      // Check for CSRF
+      if (html.toLowerCase().includes('<input') && !html.toLowerCase().includes('csrf')) {
+        results.checks.total++
+        results.checks.failed++
+        results.vulnerabilities.push({
+          type: 'Potential CSRF Vulnerability',
+          severity: 'high',
+          description: 'Forms detected without visible CSRF protection',
+          recommendation: 'Implement CSRF tokens for all forms'
+        })
+      }
+
+      // Check for SQL errors
+      const sqlErrors = ['sql syntax', 'mysql_fetch', 'pg_query', 'sqlite_query', 'odbc_exec']
+      results.checks.total++
+      for (const error of sqlErrors) {
+        if (html.toLowerCase().includes(error)) {
+          results.checks.failed++
+          results.vulnerabilities.push({
+            type: 'SQL Injection - Error Disclosure',
+            severity: 'critical',
+            description: 'SQL error messages exposed in response',
+            recommendation: 'Disable detailed error messages in production'
+          })
+          break
+        }
+      }
+      if (!results.vulnerabilities.some((v: any) => v.type.includes('SQL'))) {
+        results.checks.passed++
+      }
+
+      // Check for sensitive info
+      results.checks.total++
+      const sensitivePatterns = ['password', 'api_key', 'secret', 'token', 'private']
+      let foundSensitive = false
+      for (const pattern of sensitivePatterns) {
+        if (html.toLowerCase().includes(`"${pattern}"`)) {
+          results.checks.failed++
+          foundSensitive = true
+          results.vulnerabilities.push({
+            type: 'Sensitive Information Exposure',
+            severity: 'high',
+            description: `Potential sensitive data found: ${pattern}`,
+            recommendation: 'Remove sensitive information from client-side code'
+          })
+          break
+        }
+      }
+      if (!foundSensitive) results.checks.passed++
+
+    } catch (fetchError: any) {
+      results.checks.failed++
+      results.vulnerabilities.push({
+        type: 'Connection Error',
+        severity: 'critical',
+        description: `Failed to connect to website: ${fetchError.message}`,
+        recommendation: 'Verify website is accessible'
+      })
+    }
+
+    // 5. SSL/TLS Check
+    results.checks.total++
+    if (url.protocol === 'https:') {
+      results.checks.passed++
+      results.sslInfo = {
+        enabled: true,
+        protocol: 'HTTPS',
+        status: 'Secure connection established'
+      }
+    } else {
+      results.checks.failed++
+      results.sslInfo = {
+        enabled: false,
+        protocol: 'HTTP',
+        status: 'Insecure connection'
+      }
+      results.vulnerabilities.push({
+        type: 'No SSL/TLS Encryption',
+        severity: 'critical',
+        description: 'Website is not using HTTPS',
+        recommendation: 'Enable SSL/TLS certificate and enforce HTTPS'
+      })
+    }
+
+    // Calculate security score
+    const score = results.checks.total > 0 
+      ? Math.round((results.checks.passed / results.checks.total) * 100)
+      : 0
+
+    // Determine severity
+    const criticalCount = results.vulnerabilities.filter((v: any) => v.severity === 'critical').length
+    const highCount = results.vulnerabilities.filter((v: any) => v.severity === 'high').length
+    const mediumCount = results.vulnerabilities.filter((v: any) => v.severity === 'medium').length
+    
+    let overallSeverity = 'low'
+    if (criticalCount > 0) overallSeverity = 'critical'
+    else if (highCount > 0) overallSeverity = 'high'
+    else if (mediumCount > 0) overallSeverity = 'medium'
+
+    // Recommendations
+    const recommendations = [
+      'Enable HTTPS if not already enabled',
+      'Implement all missing security headers',
+      'Use Content Security Policy (CSP)',
+      'Enable HTTP Strict Transport Security (HSTS)',
+      'Regular security audits and penetration testing'
+    ]
+
+    // Store result in memory
+    const duration = Math.round((Date.now() - startTime) / 1000)
+    const scanResult = {
+      id: scanId,
+      targetUrl: url.toString(),
+      status: 'completed',
+      vulnerabilities: results.vulnerabilities,
+      securityScore: score,
+      securityHeaders: results.securityHeaders,
+      sslInfo: results.sslInfo,
+      technologies: results.technologies,
+      scanDuration: duration,
+      totalChecks: results.checks.total,
+      passedChecks: results.checks.passed,
+      failedChecks: results.checks.failed,
+      recommendations: recommendations,
+      severity: overallSeverity,
+      completedAt: new Date().toISOString()
+    }
+
+    scanResults.set(scanId, scanResult)
+
+  } catch (error: any) {
+    console.error('Scan error:', error)
+    scanResults.set(scanId, {
+      id: scanId,
+      targetUrl: url.toString(),
+      status: 'failed',
+      errorMessage: error.message
+    })
   }
 }
 
@@ -348,7 +582,25 @@ export async function GET(request: NextRequest) {
     const scanId = searchParams.get('scanId')
 
     if (scanId) {
-      // Get specific scan result
+      // Check memory first (for no-DB scans)
+      if (scanResults.has(scanId)) {
+        const scan = scanResults.get(scanId)
+        return NextResponse.json({
+          success: true,
+          scan: scan,
+          source: 'memory'
+        })
+      }
+
+      // Check database if Prisma is available
+      if (!prisma) {
+        return NextResponse.json(
+          { error: 'Scan not found and database not connected' },
+          { status: 404 }
+        )
+      }
+
+      // Get specific scan result from database
       const scan = await prisma.websiteScan.findUnique({
         where: { id: scanId }
       })
@@ -370,11 +622,23 @@ export async function GET(request: NextRequest) {
           technologies: scan.technologies ? JSON.parse(scan.technologies) : [],
           openPorts: scan.openPorts ? JSON.parse(scan.openPorts) : [],
           recommendations: scan.recommendations ? JSON.parse(scan.recommendations) : []
-        }
+        },
+        source: 'database'
       })
     }
 
-    // Get all scans (recent 50)
+    // If no database, return memory scans
+    if (!prisma) {
+      const memoryScans = Array.from(scanResults.values()).slice(0, 50)
+      return NextResponse.json({
+        success: true,
+        scans: memoryScans,
+        source: 'memory',
+        warning: 'Database not connected. Showing recent scans from memory.'
+      })
+    }
+
+    // Get all scans from database (recent 50)
     const scans = await prisma.websiteScan.findMany({
       orderBy: { createdAt: 'desc' },
       take: 50
@@ -391,7 +655,8 @@ export async function GET(request: NextRequest) {
         scanDuration: scan.scanDuration,
         createdAt: scan.createdAt,
         completedAt: scan.completedAt
-      }))
+      })),
+      source: 'database'
     })
 
   } catch (error: any) {
