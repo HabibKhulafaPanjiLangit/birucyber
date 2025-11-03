@@ -1,5 +1,5 @@
 // server.ts - Next.js Standalone + Socket.IO
-import { setupSocket } from '@/lib/socket';
+import { setupSocket } from './src/lib/socket';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import next from 'next';
@@ -11,15 +11,20 @@ const hostname = dev ? 'localhost' : '0.0.0.0';
 // Custom server with Socket.IO integration
 async function createCustomServer() {
   try {
+    console.log(`> Starting server in ${dev ? 'development' : 'production'} mode...`);
+    
     // Create Next.js app
     const nextApp = next({ 
       dev,
       dir: process.cwd(),
-      // In production, use the current directory where .next is located
-      conf: dev ? undefined : { distDir: './.next' }
+      hostname,
+      port: currentPort
     });
 
+    console.log('> Preparing Next.js app...');
     await nextApp.prepare();
+    console.log('> Next.js app prepared successfully');
+    
     const handle = nextApp.getRequestHandler();
 
     // Create HTTP server that will handle both Next.js and Socket.IO
@@ -32,15 +37,20 @@ async function createCustomServer() {
     });
 
     // Setup Socket.IO
+    console.log('> Setting up Socket.IO server...');
     const io = new Server(server, {
       path: '/api/socketio',
       cors: {
-        origin: "*",
-        methods: ["GET", "POST"]
-      }
+        origin: process.env.CORS_ORIGIN || "*",
+        methods: ["GET", "POST"],
+        credentials: true
+      },
+      transports: ['websocket', 'polling'],
+      allowEIO3: true
     });
 
     setupSocket(io);
+    console.log('> Socket.IO server configured');
 
     // Start the server
     server.listen(currentPort, hostname, () => {
@@ -51,14 +61,32 @@ async function createCustomServer() {
       console.log(`> Health check available at: http://${hostname}:${currentPort}/api/health`);
     });
 
+    // Error handling for server
+    server.on('error', (err) => {
+      console.error('Server error:', err);
+      process.exit(1);
+    });
+
     // Graceful shutdown
-    process.on('SIGTERM', () => {
-      console.log('SIGTERM received, closing server...');
+    const shutdown = () => {
+      console.log('Shutdown signal received, closing server...');
+      io.close(() => {
+        console.log('Socket.IO closed');
+      });
       server.close(() => {
-        console.log('Server closed');
+        console.log('HTTP server closed');
         process.exit(0);
       });
-    });
+      
+      // Force shutdown after 10s
+      setTimeout(() => {
+        console.error('Forced shutdown after timeout');
+        process.exit(1);
+      }, 10000);
+    };
+
+    process.on('SIGTERM', shutdown);
+    process.on('SIGINT', shutdown);
 
   } catch (err) {
     console.error('Server startup error:', err);
