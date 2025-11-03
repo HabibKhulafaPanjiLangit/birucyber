@@ -2,6 +2,7 @@
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import next from 'next';
+import { initializeDatabase } from './src/lib/init-db';
 
 const dev = process.env.NODE_ENV !== 'production';
 const currentPort = parseInt(process.env.PORT || '3000', 10);
@@ -13,6 +14,10 @@ async function createCustomServer() {
     console.log(`> Starting server in ${dev ? 'development' : 'production'} mode...`);
     console.log(`> Port: ${currentPort}`);
     console.log(`> Hostname: ${hostname}`);
+    
+    // Initialize database (create tables if needed)
+    console.log('> Initializing database...');
+    await initializeDatabase();
     
     // Create Next.js app
     const nextApp = next({ 
