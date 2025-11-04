@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import UserRegistrationForm from '@/components/UserRegistrationForm'
 import DVWAPortal from '@/components/security/DVWAPortal'
 
+// Updated: Nov 4, 2025 - All advanced features active
+
 interface CommandHistoryItem {
   cmd: string;
   response: string;
