@@ -10,14 +10,18 @@ import IncidentResponsePortal from '@/components/security/IncidentResponsePortal
 import SecurityLearningHub from '@/components/security/SecurityLearningHub';
 import VulnerabilityPlayground from '@/components/security/VulnerabilityPlayground';
 import EmergencyResponseSystem from '@/components/security/EmergencyResponseSystem';
+import AdvancedPayloadLibrary from '@/components/security/AdvancedPayloadLibrary';
+import IntelligenceTracker from '@/components/security/IntelligenceTracker';
+import AdvancedExploitationLab from '@/components/security/AdvancedExploitationLab';
 import { 
   Shield, BookOpen, Search, AlertTriangle, Target, 
   GraduationCap, Code, Terminal, Lock, Unlock,
   Activity, TrendingUp, Users, FileText, Zap,
-  CheckCircle, XCircle, Award, Trophy, Star
+  CheckCircle, XCircle, Award, Trophy, Star, Skull,
+  Phone, Mail, Globe, Database
 } from 'lucide-react';
 
-type PortalView = 'home' | 'emergency' | 'learning' | 'playground' | 'incident';
+type PortalView = 'home' | 'emergency' | 'learning' | 'playground' | 'incident' | 'payloads' | 'tracker' | 'exploitation';
 
 export default function DVWAPortal() {
   const [activeView, setActiveView] = useState<PortalView>('home');
@@ -33,6 +37,17 @@ export default function DVWAPortal() {
       borderColor: 'border-red-300',
       textColor: 'text-red-700',
       stats: { priority: 'CRITICAL', available: '24/7' }
+    },
+    {
+      id: 'tracker',
+      title: 'Intelligence Tracker',
+      description: 'Track phone, email, IP & social media',
+      icon: <Phone className="h-8 w-8" />,
+      color: 'from-cyan-500 to-cyan-600',
+      bgColor: 'bg-cyan-50',
+      borderColor: 'border-cyan-300',
+      textColor: 'text-cyan-700',
+      stats: { tracked: '1000+', accuracy: '95%' }
     },
     {
       id: 'incident',
@@ -66,6 +81,28 @@ export default function DVWAPortal() {
       borderColor: 'border-purple-300',
       textColor: 'text-purple-700',
       stats: { tools: '15+', modes: 'Safe' }
+    },
+    {
+      id: 'payloads',
+      title: 'Advanced Payload Library',
+      description: 'Professional exploitation payloads',
+      icon: <Zap className="h-8 w-8" />,
+      color: 'from-yellow-500 to-yellow-600',
+      bgColor: 'bg-yellow-50',
+      borderColor: 'border-yellow-300',
+      textColor: 'text-yellow-700',
+      stats: { payloads: '8192+', categories: '15' }
+    },
+    {
+      id: 'exploitation',
+      title: 'Advanced Exploitation Lab',
+      description: 'Remote code execution & DoS attacks',
+      icon: <Skull className="h-8 w-8" />,
+      color: 'from-red-600 to-red-800',
+      bgColor: 'bg-red-100',
+      borderColor: 'border-red-400',
+      textColor: 'text-red-800',
+      stats: { exploits: 'LIVE', danger: 'EXTREME' }
     }
   ];
 
@@ -87,12 +124,18 @@ export default function DVWAPortal() {
     switch (activeView) {
       case 'emergency':
         return <EmergencyResponseSystem />;
+      case 'tracker':
+        return <IntelligenceTracker />;
       case 'incident':
         return <IncidentResponsePortal />;
       case 'learning':
         return <SecurityLearningHub />;
       case 'playground':
         return <VulnerabilityPlayground />;
+      case 'payloads':
+        return <AdvancedPayloadLibrary />;
+      case 'exploitation':
+        return <AdvancedExploitationLab />;
       default:
         return (
           <div className="space-y-6">
@@ -147,7 +190,7 @@ export default function DVWAPortal() {
             </div>
 
             {/* Main Features Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {features.map((feature) => (
                 <Card 
                   key={feature.id}
