@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import UserRegistrationForm from '@/components/UserRegistrationForm'
+import DVWAPortal from '@/components/security/DVWAPortal'
 
 interface CommandHistoryItem {
   cmd: string;
@@ -9,6 +10,7 @@ interface CommandHistoryItem {
 }
 
 export default function HackerPortal() {
+  const [showDVWAPortal, setShowDVWAPortal] = useState(false)
   const [activeTab, setActiveTab] = useState('terminal')
   const [commandHistory, setCommandHistory] = useState<CommandHistoryItem[]>([])
   const [currentCommand, setCurrentCommand] = useState('')
@@ -474,6 +476,11 @@ Type 'help' for available commands.`
     }
   }
 
+  // Show DVWA Portal if requested
+  if (showDVWAPortal) {
+    return <DVWAPortal />
+  }
+
   return (
     <div style={{ 
       minHeight: '100vh', 
@@ -729,11 +736,18 @@ Type 'help' for available commands.`
             { id: 'modules', icon: '🔧', label: 'MODULES' },
             { id: 'scan', icon: '🔍', label: 'SCANNER' },
             { id: 'exploits', icon: '⚔️', label: 'EXPLOITS' },
-            { id: 'logs', icon: '👥', label: 'USER MGMT' }
+            { id: 'logs', icon: '👥', label: 'USER MGMT' },
+            { id: 'dvwa', icon: '🛡️', label: 'DVWA PORTAL' }
           ].map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => {
+                if (tab.id === 'dvwa') {
+                  setShowDVWAPortal(true)
+                } else {
+                  setActiveTab(tab.id)
+                }
+              }}
               className="nav-tab"
               style={{
                 padding: 'clamp(0.5rem, 2vw, 1rem) clamp(0.75rem, 3vw, 2rem)',

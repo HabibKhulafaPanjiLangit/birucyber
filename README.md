@@ -1,6 +1,8 @@
-# �️ Biru Cyber Security Testing Platform
+# BiruCyber - Advanced Security Scanner
 
-A comprehensive, interactive web application for learning and testing cybersecurity vulnerabilities. Built with Next.js 15 + TypeScript + Tailwind CSS.
+Professional website security scanning tool to detect vulnerabilities and help secure websites.
+
+**Version 2.0 - MAKSIMAL EDITION** 🛡️
 
 ## ✅ **STATUS: ALL FEATURES FULLY FUNCTIONAL**
 - 🎯 **6 Security Modules** - All operational
