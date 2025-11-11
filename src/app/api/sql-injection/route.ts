@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
-
-const prisma = new PrismaClient()
+import { db } from '@/lib/db'
 
 // Simulated sensitive database tables (for demo purposes)
 const creditCards = [
@@ -25,7 +23,7 @@ export async function POST(request: NextRequest) {
     if (testMode === 'safe') {
       try {
         // Try to find user by username or email
-        const user = await prisma.user.findFirst({
+  const user = await db?.user.findFirst({
           where: {
             OR: [
               { username: username.trim() },
@@ -57,7 +55,7 @@ export async function POST(request: NextRequest) {
 
           // Save successful safe login to database
           try {
-            await prisma.sqlInjectionTest.create({
+            await db?.sqlInjectionTest.create({
               data: {
                 username: username,
                 password: '[REDACTED]', // Don't store actual password in safe mode
@@ -91,7 +89,7 @@ export async function POST(request: NextRequest) {
 
           // Save failed safe login to database
           try {
-            await prisma.sqlInjectionTest.create({
+            await db?.sqlInjectionTest.create({
               data: {
                 username: username,
                 password: '[REDACTED]',
@@ -165,7 +163,7 @@ export async function POST(request: NextRequest) {
         }
         
         // Fetch all users from database to simulate data breach
-        const allUsers = await prisma.user.findMany({
+  const allUsers = await db?.user.findMany({
           select: {
             id: true,
             username: true,
@@ -188,7 +186,7 @@ export async function POST(request: NextRequest) {
           exposedData: {
             users: allUsers,
             creditCards: creditCards, // Simulating data breach
-            totalRecordsExposed: allUsers.length + creditCards.length
+            totalRecordsExposed: (allUsers?.length ?? 0) + creditCards.length
           },
           attackVector: username.includes('UNION') ? 'UNION-based SQLi' : 
                        username.includes('SLEEP') ? 'Time-based Blind SQLi' : 
@@ -225,7 +223,7 @@ export async function POST(request: NextRequest) {
 
         // Save test result to database
         try {
-          await prisma.sqlInjectionTest.create({
+          await db?.sqlInjectionTest.create({
             data: {
               username: username,
               password: password,
@@ -247,7 +245,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Normal login attempt in vulnerable mode (no SQL injection detected)
-      const user = await prisma.user.findFirst({
+  const user = await db?.user.findFirst({
         where: {
           OR: [
             { username: username },
@@ -272,7 +270,7 @@ export async function POST(request: NextRequest) {
 
         // Save successful login to database
         try {
-          await prisma.sqlInjectionTest.create({
+          await db?.sqlInjectionTest.create({
             data: {
               username: username,
               password: password,
@@ -300,7 +298,7 @@ export async function POST(request: NextRequest) {
 
         // Save failed login to database
         try {
-          await prisma.sqlInjectionTest.create({
+          await db?.sqlInjectionTest.create({
             data: {
               username: username,
               password: password,

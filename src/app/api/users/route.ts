@@ -1,20 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
-
-const prisma = new PrismaClient()
+import { db } from '@/lib/db'
 
 // GET - Fetch all users
 export async function GET(request: NextRequest) {
   try {
-    const users = await prisma.user.findMany({
-      orderBy: { createdAt: 'desc' }
-    })
-    
-    return NextResponse.json({
-      success: true,
-      count: users.length,
-      users: users
-    })
+  const users = await db?.user.findMany({
+    orderBy: { createdAt: 'desc' }
+  }) ?? [];
+
+  return NextResponse.json({
+    success: true,
+    count: users.length,
+    users: users
+  })
   } catch (error: any) {
     return NextResponse.json(
       { 
@@ -71,7 +69,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
+  const existingUser = await db?.user.findUnique({
       where: { email }
     })
 
@@ -89,7 +87,7 @@ export async function POST(request: NextRequest) {
     const finalUsername = username || email.split('@')[0]
 
     // Check if username is taken
-    const existingUsername = await prisma.user.findUnique({
+  const existingUsername = await db?.user.findUnique({
       where: { username: finalUsername }
     })
 
@@ -141,7 +139,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create user with all fields
-    const newUser = await prisma.user.create({
+  const newUser = await db?.user.create({
       data: {
         email,
         name,
@@ -227,7 +225,7 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    const deletedUser = await prisma.user.delete({
+  const deletedUser = await db?.user.delete({
       where: { id: userId }
     })
 
